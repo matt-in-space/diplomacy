@@ -6,6 +6,7 @@ The purpose of this document is a brainstorm and plan the primary technical impl
 ## Resources
 - [Diplomacy Rules](https://media.wizards.com/2015/downloads/ah/diplomacy_rules.pdf)
 - [Adjudication Test Cases](https://webdiplomacy.net/doc/DATC_v3_0.html)
+- [Diplomacy Map](https://www.reddit.com/r/diplomacy/comments/8gx4ao/diplomacy_map/#lightbox)
 
 ## Rules
 - There are 7 great powers (England, Germany, Russia, Turkey, Italy, Austria-Hungary, France)

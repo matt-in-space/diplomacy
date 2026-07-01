@@ -1,0 +1,87 @@
+{
+  "id": "western-europe-subset",
+  "name": "Western Europe Test Subset",
+  "provinces": [
+    {
+      "id": "par",
+      "name": "Paris",
+      "type": "inland",
+      "supply_center": true,
+      "home_nation": "France",
+      "coasts": []
+    },
+    {
+      "id": "bre",
+      "name": "Brest",
+      "type": "coastal",
+      "supply_center": true,
+      "home_nation": "France",
+      "coasts": ["bre"]
+    },
+    {
+      "id": "gas",
+      "name": "Gascony",
+      "type": "coastal",
+      "supply_center": false,
+      "home_nation": "",
+      "coasts": ["gas"]
+    },
+    {
+      "id": "mao",
+      "name": "Mid-Atlantic Ocean",
+      "type": "water",
+      "supply_center": false,
+      "home_nation": "",
+      "coasts": ["mao"]
+    },
+    {
+      "id": "eng",
+      "name": "English Channel",
+      "type": "water",
+      "supply_center": false,
+      "home_nation": "",
+      "coasts": ["eng"]
+    },
+    {
+      "id": "lon",
+      "name": "London",
+      "type": "coastal",
+      "supply_center": true,
+      "home_nation": "England",
+      "coasts": ["lon"]
+    },
+    {
+      "id": "spa",
+      "name": "Spain",
+      "type": "coastal",
+      "supply_center": true,
+      "home_nation": "",
+      "coasts": ["spa-nc", "spa-sc"]
+    },
+    {
+      "id": "por",
+      "name": "Portugal",
+      "type": "coastal",
+      "supply_center": true,
+      "home_nation": "",
+      "coasts": ["por"]
+    }
+  ],
+  "army_adjacency": {
+    "par": ["bre", "gas"],
+    "bre": ["par", "gas"],
+    "gas": ["par", "bre", "spa"],
+    "spa": ["gas", "por"],
+    "por": ["spa"]
+  },
+  "fleet_adjacency": {
+    "eng": ["lon", "bre", "mao"],
+    "lon": ["eng"],
+    "bre": ["eng", "mao", "gas"],
+    "gas": ["bre", "mao", "spa-nc"],
+    "mao": ["eng", "bre", "gas", "spa-nc", "spa-sc", "por"],
+    "spa-nc": ["gas", "mao", "por"],
+    "spa-sc": ["mao", "por"],
+    "por": ["mao", "spa-nc", "spa-sc"]
+  }
+}
