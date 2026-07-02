@@ -2,6 +2,7 @@ package gamemap
 
 import "slices"
 
+type MapID string
 type CoastID string
 type ProvinceID string
 type ProvinceType string
@@ -15,6 +16,8 @@ const (
 // A GameMap represents the static map of the game. In addition to Provinces
 // it also contains adjacency information for armies and fleets.
 type GameMap struct {
+	ID             MapID
+	Name           string
 	Provinces      map[ProvinceID]Province
 	ArmyAdjacency  map[ProvinceID][]ProvinceID
 	FleetAdjacency map[CoastID][]CoastID

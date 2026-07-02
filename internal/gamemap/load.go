@@ -37,6 +37,8 @@ func Load(data []byte) (*GameMap, error) {
 
 func hydrateGameMap(g gameMapData) (*GameMap, error) {
 	m := &GameMap{
+		ID:             MapID(g.ID),
+		Name:           g.Name,
 		Provinces:      make(map[ProvinceID]Province, len(g.Provinces)),
 		ArmyAdjacency:  make(map[ProvinceID][]ProvinceID, len(g.ArmyAdjacency)),
 		FleetAdjacency: make(map[CoastID][]CoastID, len(g.FleetAdjacency)),
