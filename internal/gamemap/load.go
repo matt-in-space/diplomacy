@@ -23,6 +23,8 @@ type provinceData struct {
 	Coasts       []string `json:"coasts"`
 }
 
+// Load parses the given JSON data into a GameMap.
+// It validates the data and returns an error if it is invalid.
 func Load(data []byte) (*GameMap, error) {
 	var g gameMapData
 
