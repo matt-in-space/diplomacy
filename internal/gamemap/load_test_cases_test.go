@@ -6,6 +6,38 @@ var loadErrorCases = []struct {
 	want string
 }{
 	{
+		name: "empty nation id",
+		data: `{
+			"nations": [""],
+			"provinces": [],
+			"army_adjacency": {},
+			"fleet_adjacency": {}
+		}`,
+		want: "nation id is required",
+	},
+	{
+		name: "duplicate nation id",
+		data: `{
+			"nations": ["fra", "fra"],
+			"provinces": [],
+			"army_adjacency": {},
+			"fleet_adjacency": {}
+		}`,
+		want: "duplicate nation",
+	},
+	{
+		name: "unknown home nation",
+		data: `{
+			"nations": ["eng"],
+			"provinces": [
+				{ "id": "par", "name": "Paris", "type": "inland", "home_nation": "fra", "coasts": [] }
+			],
+			"army_adjacency": {},
+			"fleet_adjacency": {}
+		}`,
+		want: "home nation \"fra\" not found",
+	},
+	{
 		name: "duplicate province id",
 		data: `{
 			"provinces": [

@@ -9,6 +9,7 @@ import (
 type gameMapData struct {
 	ID             string              `json:"id"`
 	Name           string              `json:"name"`
+	Nations        []string            `json:"nations"`
 	Provinces      []provinceData      `json:"provinces"`
 	ArmyAdjacency  map[string][]string `json:"army_adjacency"`
 	FleetAdjacency map[string][]string `json:"fleet_adjacency"`
@@ -39,13 +40,18 @@ func hydrateGameMap(g gameMapData) (*GameMap, error) {
 	m := &GameMap{
 		ID:             MapID(g.ID),
 		Name:           g.Name,
+		Nations:        make([]NationID, 0, len(g.Nations)),
 		Provinces:      make(map[ProvinceID]Province, len(g.Provinces)),
 		ArmyAdjacency:  make(map[ProvinceID][]ProvinceID, len(g.ArmyAdjacency)),
 		FleetAdjacency: make(map[CoastID][]CoastID, len(g.FleetAdjacency)),
 	}
 	coastToProvince := make(map[CoastID]ProvinceID)
+	nations := make(map[NationID]struct{}, len(g.Nations))
 
-	if err := hydrateProvinces(g.Provinces, m, coastToProvince); err != nil {
+	if err := hydrateNations(g.Nations, m, nations); err != nil {
+		return nil, err
+	}
+	if err := hydrateProvinces(g.Provinces, m, coastToProvince, nations); err != nil {
 		return nil, err
 	}
 	if err := hydrateArmyAdjacency(g.ArmyAdjacency, m); err != nil {
@@ -64,7 +70,24 @@ func hydrateGameMap(g gameMapData) (*GameMap, error) {
 	return m, nil
 }
 
-func hydrateProvinces(provinces []provinceData, m *GameMap, coastToProvince map[CoastID]ProvinceID) error {
+func hydrateNations(ids []string, m *GameMap, nations map[NationID]struct{}) error {
+	for _, id := range ids {
+		nid := NationID(id)
+		if nid == "" {
+			return fmt.Errorf("nation id is required")
+		}
+		if _, ok := nations[nid]; ok {
+			return fmt.Errorf("duplicate nation %q", nid)
+		}
+
+		nations[nid] = struct{}{}
+		m.Nations = append(m.Nations, nid)
+	}
+
+	return nil
+}
+
+func hydrateProvinces(provinces []provinceData, m *GameMap, coastToProvince map[CoastID]ProvinceID, nations map[NationID]struct{}) error {
 	for _, p := range provinces {
 		pid := ProvinceID(p.ID)
 		if pid == "" {
@@ -81,13 +104,17 @@ func hydrateProvinces(provinces []provinceData, m *GameMap, coastToProvince map[
 		if err := validateProvinceCoasts(pid, pt, p.Coasts); err != nil {
 			return err
 		}
+		homeNation := NationID(p.HomeNation)
+		if err := validateHomeNation(pid, homeNation, nations); err != nil {
+			return err
+		}
 
 		province := Province{
 			ID:           pid,
 			Name:         p.Name,
 			Type:         pt,
 			SupplyCenter: p.SupplyCenter,
-			HomeNation:   p.HomeNation,
+			HomeNation:   homeNation,
 			Coasts:       make([]CoastID, len(p.Coasts)),
 		}
 
@@ -165,6 +192,17 @@ func validateProvinceCoasts(pid ProvinceID, pt ProvinceType, coasts []string) er
 
 	if slices.Contains(coasts, "") {
 		return fmt.Errorf("province %q: coast id is required", pid)
+	}
+
+	return nil
+}
+
+func validateHomeNation(pid ProvinceID, homeNation NationID, nations map[NationID]struct{}) error {
+	if homeNation == "" {
+		return nil
+	}
+	if _, ok := nations[homeNation]; !ok {
+		return fmt.Errorf("province %q: home nation %q not found", pid, homeNation)
 	}
 
 	return nil

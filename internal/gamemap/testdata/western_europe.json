@@ -1,13 +1,14 @@
 {
   "id": "western-europe-subset",
   "name": "Western Europe Test Subset",
+  "nations": ["eng", "fra"],
   "provinces": [
     {
       "id": "par",
       "name": "Paris",
       "type": "inland",
       "supply_center": true,
-      "home_nation": "France",
+      "home_nation": "fra",
       "coasts": []
     },
     {
@@ -15,7 +16,7 @@
       "name": "Brest",
       "type": "coastal",
       "supply_center": true,
-      "home_nation": "France",
+      "home_nation": "fra",
       "coasts": ["bre"]
     },
     {
@@ -47,7 +48,7 @@
       "name": "London",
       "type": "coastal",
       "supply_center": true,
-      "home_nation": "England",
+      "home_nation": "eng",
       "coasts": ["lon"]
     },
     {

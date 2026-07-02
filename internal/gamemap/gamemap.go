@@ -6,6 +6,7 @@ type MapID string
 type CoastID string
 type ProvinceID string
 type ProvinceType string
+type NationID string
 
 const (
 	Inland  ProvinceType = "inland"
@@ -18,6 +19,7 @@ const (
 type GameMap struct {
 	ID             MapID
 	Name           string
+	Nations        []NationID
 	Provinces      map[ProvinceID]Province
 	ArmyAdjacency  map[ProvinceID][]ProvinceID
 	FleetAdjacency map[CoastID][]CoastID
@@ -29,7 +31,7 @@ type Province struct {
 	Name         string
 	Type         ProvinceType
 	SupplyCenter bool
-	HomeNation   string
+	HomeNation   NationID
 	Coasts       []CoastID
 }
 

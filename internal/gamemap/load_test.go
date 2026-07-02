@@ -2,6 +2,7 @@ package gamemap_test
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,6 +31,16 @@ func TestLoad_CreatesHydratedGameMap(t *testing.T) {
 
 	if par.Name != "Paris" {
 		t.Fatalf("Province 'par' has incorrect name: got %s, want Paris", par.Name)
+	}
+
+	if !slices.Contains(gm.Nations, gamemap.NationID("eng")) {
+		t.Fatalf("expected nations to contain eng")
+	}
+	if !slices.Contains(gm.Nations, gamemap.NationID("fra")) {
+		t.Fatalf("expected nations to contain fra")
+	}
+	if par.HomeNation != "fra" {
+		t.Fatalf("Province 'par' has incorrect home nation: got %s, want fra", par.HomeNation)
 	}
 }
 
