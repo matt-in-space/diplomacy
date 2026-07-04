@@ -2,6 +2,7 @@ package game_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/matt-in-space/diplomacy/internal/game"
@@ -112,6 +113,139 @@ func TestNewGame_RejectsNilMap(t *testing.T) {
 	}
 }
 
+func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	order := game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}
+
+	if err := g.SubmitOrder(order, gm); err != nil {
+		t.Fatalf("SubmitOrder failed: %v", err)
+	}
+
+	got, ok := g.Orders["fra-army-par-start"]
+	if !ok {
+		t.Fatalf("expected order to be stored")
+	}
+	if got != order {
+		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+}
+
+func TestGameSubmitOrder_ReplacesExistingOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	unitID := game.UnitID("fra-army-par-start")
+	g.Orders[unitID] = testOrder{unitID: unitID, nationID: "fra"}
+
+	order := game.HoldOrder{UnitID: unitID, NationID: "fra"}
+	if err := g.SubmitOrder(order, gm); err != nil {
+		t.Fatalf("SubmitOrder failed: %v", err)
+	}
+
+	got, ok := g.Orders[unitID].(game.HoldOrder)
+	if !ok {
+		t.Fatalf("expected replacement order to be HoldOrder, got %T", g.Orders[unitID])
+	}
+	if got != order {
+		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+}
+
+func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap)
+		want string
+	}{
+		{
+			name: "nil order",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return nil, gm
+			},
+			want: "order is required",
+		},
+		{
+			name: "nil map",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, nil
+			},
+			want: "game map is required",
+		},
+		{
+			name: "map mismatch",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, &gamemap.GameMap{ID: "other-map"}
+			},
+			want: "does not match",
+		},
+		{
+			name: "wrong phase",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				g.Turn.Phase = game.ResolveOrders
+				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, gm
+			},
+			want: "cannot submit order during phase",
+		},
+		{
+			name: "unknown nation",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "ita"}, gm
+			},
+			want: "order nation \"ita\" not found",
+		},
+		{
+			name: "unknown unit",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return game.HoldOrder{UnitID: "missing", NationID: "fra"}, gm
+			},
+			want: "unit \"missing\" not found",
+		},
+		{
+			name: "wrong nation for unit",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return game.HoldOrder{UnitID: "eng-fleet-lon-start", NationID: "fra"}, gm
+			},
+			want: "belongs to nation \"eng\", not \"fra\"",
+		},
+		{
+			name: "unit not on board",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				delete(g.Positions, "par")
+				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, gm
+			},
+			want: "is not on the board",
+		},
+		{
+			name: "unsupported order type",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				return testOrder{unitID: "fra-army-par-start", nationID: "fra"}, gm
+			},
+			want: "unsupported order type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := loadWesternEuropeMap(t)
+			g := newWesternEuropeGame(t, gm)
+			order, orderMap := tt.edit(g, gm)
+			assertSubmitOrderErrorContains(t, g, order, orderMap, tt.want)
+		})
+	}
+}
+
+func assertSubmitOrderErrorContains(t *testing.T, g *game.Game, order game.Order, gm *gamemap.GameMap, want string) {
+	t.Helper()
+
+	err := g.SubmitOrder(order, gm)
+	if err == nil {
+		t.Fatalf("expected SubmitOrder to fail")
+	}
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("SubmitOrder error = %q, want substring %q", err.Error(), want)
+	}
+}
+
 func assertUnit(t *testing.T, g *game.Game, id game.UnitID, want game.Unit) {
 	t.Helper()
 
@@ -122,6 +256,36 @@ func assertUnit(t *testing.T, g *game.Game, id game.UnitID, want game.Unit) {
 	if got != want {
 		t.Fatalf("unit %q = %+v, want %+v", id, got, want)
 	}
+}
+
+func newWesternEuropeGame(t *testing.T, gm *gamemap.GameMap) *game.Game {
+	t.Helper()
+
+	g, err := game.NewGame(game.NewGameConfig{
+		ID: "game-1",
+		Assignments: map[gamemap.NationID]game.PlayerID{
+			"eng": "player-1",
+			"fra": "player-2",
+		},
+	}, gm)
+	if err != nil {
+		t.Fatalf("NewGame failed: %v", err)
+	}
+
+	return g
+}
+
+type testOrder struct {
+	unitID   game.UnitID
+	nationID gamemap.NationID
+}
+
+func (o testOrder) Unit() game.UnitID {
+	return o.unitID
+}
+
+func (o testOrder) Nation() gamemap.NationID {
+	return o.nationID
 }
 
 func loadWesternEuropeMap(t *testing.T) *gamemap.GameMap {

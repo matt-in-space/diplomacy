@@ -43,7 +43,7 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 	}
 
 	for nation, player := range cfg.Assignments {
-		if !nationExists(nation, gm.Nations) {
+		if !slices.Contains(gm.Nations, nation) {
 			return nil, fmt.Errorf("assignment nation %q not found", nation)
 		}
 		g.Assignments[nation] = player
@@ -78,8 +78,50 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 	return g, nil
 }
 
-func nationExists(nation gamemap.NationID, nations []gamemap.NationID) bool {
-	return slices.Contains(nations, nation)
+func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
+	if order == nil {
+		return fmt.Errorf("order is required")
+	}
+	if gm == nil {
+		return fmt.Errorf("game map is required")
+	}
+	if gm.ID != g.MapID {
+		return fmt.Errorf("game map %q does not match game map %q", gm.ID, g.MapID)
+	}
+	if g.Turn.Phase != AcceptOrders {
+		return fmt.Errorf("cannot submit order during phase %q", g.Turn.Phase)
+	}
+
+	nation := order.Nation()
+	if !slices.Contains(gm.Nations, nation) {
+		return fmt.Errorf("order nation %q not found", nation)
+	}
+
+	unitID := order.Unit()
+	unit, ok := g.Units[unitID]
+	if !ok {
+		return fmt.Errorf("unit %q not found", unitID)
+	}
+	if unit.NationID != nation {
+		return fmt.Errorf("unit %q belongs to nation %q, not %q", unitID, unit.NationID, nation)
+	}
+	if occupyingUnit, ok := g.Positions[unit.ProvinceID]; !ok || occupyingUnit != unitID {
+		return fmt.Errorf("unit %q is not on the board", unitID)
+	}
+
+	switch order.(type) {
+	case HoldOrder:
+	// noop: hold orders are valid and do not need to be checked
+	default:
+		return fmt.Errorf("unsupported order type %T", order)
+	}
+
+	if g.Orders == nil {
+		g.Orders = make(map[UnitID]Order)
+	}
+	g.Orders[unitID] = order
+
+	return nil
 }
 
 func unitTypeFromStartingUnit(unitType gamemap.StartingUnitType) (UnitType, error) {
