@@ -10,6 +10,7 @@ type gameMapData struct {
 	ID             string              `json:"id"`
 	Name           string              `json:"name"`
 	Nations        []string            `json:"nations"`
+	StartingUnits  []startingUnitData  `json:"starting_units"`
 	Provinces      []provinceData      `json:"provinces"`
 	ArmyAdjacency  map[string][]string `json:"army_adjacency"`
 	FleetAdjacency map[string][]string `json:"fleet_adjacency"`
@@ -22,6 +23,13 @@ type provinceData struct {
 	SupplyCenter bool     `json:"supply_center"`
 	HomeNation   string   `json:"home_nation"`
 	Coasts       []string `json:"coasts"`
+}
+
+type startingUnitData struct {
+	Nation   string `json:"nation"`
+	Type     string `json:"type"`
+	Province string `json:"province"`
+	Coast    string `json:"coast"`
 }
 
 // Load parses the given JSON data into a GameMap.
@@ -52,6 +60,9 @@ func hydrateGameMap(g gameMapData) (*GameMap, error) {
 		return nil, err
 	}
 	if err := hydrateProvinces(g.Provinces, m, coastToProvince, nations); err != nil {
+		return nil, err
+	}
+	if err := hydrateStartingUnits(g.StartingUnits, m, nations, coastToProvince); err != nil {
 		return nil, err
 	}
 	if err := hydrateArmyAdjacency(g.ArmyAdjacency, m); err != nil {
@@ -133,6 +144,43 @@ func hydrateProvinces(provinces []provinceData, m *GameMap, coastToProvince map[
 	return nil
 }
 
+func hydrateStartingUnits(units []startingUnitData, m *GameMap, nations map[NationID]struct{}, coastToProvince map[CoastID]ProvinceID) error {
+	occupiedProvinces := make(map[ProvinceID]struct{}, len(units))
+
+	for _, unit := range units {
+		nation := NationID(unit.Nation)
+		unitType, err := parseStartingUnitType(unit.Type)
+		if err != nil {
+			return err
+		}
+
+		provinceID := ProvinceID(unit.Province)
+		province, ok := m.Provinces[provinceID]
+		if !ok {
+			return fmt.Errorf("starting unit province %q not found", provinceID)
+		}
+		if _, ok := occupiedProvinces[provinceID]; ok {
+			return fmt.Errorf("multiple starting units in province %q", provinceID)
+		}
+		if err := validateStartingUnitNation(nation, nations); err != nil {
+			return err
+		}
+		if err := validateStartingUnitPosition(unitType, province, CoastID(unit.Coast), coastToProvince); err != nil {
+			return err
+		}
+
+		m.StartingUnits = append(m.StartingUnits, StartingUnit{
+			Nation:   nation,
+			Type:     unitType,
+			Province: provinceID,
+			Coast:    CoastID(unit.Coast),
+		})
+		occupiedProvinces[provinceID] = struct{}{}
+	}
+
+	return nil
+}
+
 func hydrateArmyAdjacency(adjacency map[string][]string, m *GameMap) error {
 	for from, tos := range adjacency {
 		pid := ProvinceID(from)
@@ -182,6 +230,15 @@ func parseProvinceType(t string) (ProvinceType, error) {
 	}
 }
 
+func parseStartingUnitType(t string) (StartingUnitType, error) {
+	switch StartingUnitType(t) {
+	case StartingUnitTypeArmy, StartingUnitTypeFleet:
+		return StartingUnitType(t), nil
+	default:
+		return "", fmt.Errorf("unknown starting unit type %q", t)
+	}
+}
+
 func validateProvinceCoasts(pid ProvinceID, pt ProvinceType, coasts []string) error {
 	if pt == Inland && len(coasts) > 0 {
 		return fmt.Errorf("province %q: inland provinces cannot have coasts", pid)
@@ -203,6 +260,42 @@ func validateHomeNation(pid ProvinceID, homeNation NationID, nations map[NationI
 	}
 	if _, ok := nations[homeNation]; !ok {
 		return fmt.Errorf("province %q: home nation %q not found", pid, homeNation)
+	}
+
+	return nil
+}
+
+func validateStartingUnitNation(nation NationID, nations map[NationID]struct{}) error {
+	if nation == "" {
+		return fmt.Errorf("starting unit nation is required")
+	}
+	if _, ok := nations[nation]; !ok {
+		return fmt.Errorf("starting unit nation %q not found", nation)
+	}
+
+	return nil
+}
+
+func validateStartingUnitPosition(unitType StartingUnitType, province Province, coast CoastID, coastToProvince map[CoastID]ProvinceID) error {
+	if unitType == StartingUnitTypeArmy {
+		if province.Type == Water {
+			return fmt.Errorf("army cannot start in water province %q", province.ID)
+		}
+		if coast != "" {
+			return fmt.Errorf("army starting in province %q cannot have coast", province.ID)
+		}
+		return nil
+	}
+
+	if coast == "" {
+		return fmt.Errorf("fleet starting in province %q must have coast", province.ID)
+	}
+	coastProvince, ok := coastToProvince[coast]
+	if !ok {
+		return fmt.Errorf("fleet starting coast %q not found", coast)
+	}
+	if coastProvince != province.ID {
+		return fmt.Errorf("fleet starting coast %q does not belong to province %q", coast, province.ID)
 	}
 
 	return nil

@@ -7,11 +7,17 @@ type CoastID string
 type ProvinceID string
 type ProvinceType string
 type NationID string
+type StartingUnitType string
 
 const (
 	Inland  ProvinceType = "inland"
 	Coastal ProvinceType = "coastal"
 	Water   ProvinceType = "water"
+)
+
+const (
+	StartingUnitTypeArmy  StartingUnitType = "army"
+	StartingUnitTypeFleet StartingUnitType = "fleet"
 )
 
 // A GameMap represents the static map of the game. In addition to Provinces
@@ -20,6 +26,7 @@ type GameMap struct {
 	ID             MapID
 	Name           string
 	Nations        []NationID
+	StartingUnits  []StartingUnit
 	Provinces      map[ProvinceID]Province
 	ArmyAdjacency  map[ProvinceID][]ProvinceID
 	FleetAdjacency map[CoastID][]CoastID
@@ -33,6 +40,13 @@ type Province struct {
 	SupplyCenter bool
 	HomeNation   NationID
 	Coasts       []CoastID
+}
+
+type StartingUnit struct {
+	Nation   NationID
+	Type     StartingUnitType
+	Province ProvinceID
+	Coast    CoastID
 }
 
 // Province returns the province for the given ID.

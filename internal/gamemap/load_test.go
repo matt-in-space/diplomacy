@@ -42,6 +42,28 @@ func TestLoad_CreatesHydratedGameMap(t *testing.T) {
 	if par.HomeNation != "fra" {
 		t.Fatalf("Province 'par' has incorrect home nation: got %s, want fra", par.HomeNation)
 	}
+	if len(gm.StartingUnits) != 3 {
+		t.Fatalf("StartingUnits length = %d, want 3", len(gm.StartingUnits))
+	}
+
+	assertStartingUnit(t, gm.StartingUnits, gamemap.StartingUnit{
+		Nation:   "fra",
+		Type:     gamemap.StartingUnitTypeArmy,
+		Province: "par",
+		Coast:    "",
+	})
+	assertStartingUnit(t, gm.StartingUnits, gamemap.StartingUnit{
+		Nation:   "fra",
+		Type:     gamemap.StartingUnitTypeFleet,
+		Province: "bre",
+		Coast:    "bre",
+	})
+	assertStartingUnit(t, gm.StartingUnits, gamemap.StartingUnit{
+		Nation:   "eng",
+		Type:     gamemap.StartingUnitTypeFleet,
+		Province: "lon",
+		Coast:    "lon",
+	})
 }
 
 func TestLoad_RejectsInvalidMaps(t *testing.T) {
@@ -49,6 +71,14 @@ func TestLoad_RejectsInvalidMaps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assertLoadErrorContains(t, []byte(tc.data), tc.want)
 		})
+	}
+}
+
+func assertStartingUnit(t *testing.T, units []gamemap.StartingUnit, want gamemap.StartingUnit) {
+	t.Helper()
+
+	if !slices.Contains(units, want) {
+		t.Fatalf("expected starting units to contain %+v", want)
 	}
 }
 

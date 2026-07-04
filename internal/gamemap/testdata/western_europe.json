@@ -2,6 +2,26 @@
   "id": "western-europe-subset",
   "name": "Western Europe Test Subset",
   "nations": ["eng", "fra"],
+  "starting_units": [
+    {
+      "nation": "fra",
+      "type": "army",
+      "province": "par",
+      "coast": ""
+    },
+    {
+      "nation": "fra",
+      "type": "fleet",
+      "province": "bre",
+      "coast": "bre"
+    },
+    {
+      "nation": "eng",
+      "type": "fleet",
+      "province": "lon",
+      "coast": "lon"
+    }
+  ],
   "provinces": [
     {
       "id": "par",
