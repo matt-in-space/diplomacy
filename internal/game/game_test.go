@@ -116,7 +116,7 @@ func TestNewGame_RejectsNilMap(t *testing.T) {
 func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 	g := newWesternEuropeGame(t, gm)
-	order := game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}
+	order := game.NewHoldOrder("fra-army-par-start", "fra")
 
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
@@ -137,7 +137,7 @@ func TestGameSubmitOrder_ReplacesExistingOrder(t *testing.T) {
 	unitID := game.UnitID("fra-army-par-start")
 	g.Orders[unitID] = testOrder{unitID: unitID, nationID: "fra"}
 
-	order := game.HoldOrder{UnitID: unitID, NationID: "fra"}
+	order := game.NewHoldOrder(unitID, "fra")
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
@@ -167,14 +167,14 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 		{
 			name: "nil map",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, nil
+				return game.NewHoldOrder("fra-army-par-start", "fra"), nil
 			},
 			want: "game map is required",
 		},
 		{
 			name: "map mismatch",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, &gamemap.GameMap{ID: "other-map"}
+				return game.NewHoldOrder("fra-army-par-start", "fra"), &gamemap.GameMap{ID: "other-map"}
 			},
 			want: "does not match",
 		},
@@ -182,28 +182,28 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 			name: "wrong phase",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
 				g.Turn.Phase = game.ResolveOrders
-				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, gm
+				return game.NewHoldOrder("fra-army-par-start", "fra"), gm
 			},
 			want: "cannot submit order during phase",
 		},
 		{
 			name: "unknown nation",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "ita"}, gm
+				return game.NewHoldOrder("fra-army-par-start", "ita"), gm
 			},
 			want: "order nation \"ita\" not found",
 		},
 		{
 			name: "unknown unit",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				return game.HoldOrder{UnitID: "missing", NationID: "fra"}, gm
+				return game.NewHoldOrder("missing", "fra"), gm
 			},
 			want: "unit \"missing\" not found",
 		},
 		{
 			name: "wrong nation for unit",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				return game.HoldOrder{UnitID: "eng-fleet-lon-start", NationID: "fra"}, gm
+				return game.NewHoldOrder("eng-fleet-lon-start", "fra"), gm
 			},
 			want: "belongs to nation \"eng\", not \"fra\"",
 		},
@@ -211,7 +211,7 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 			name: "unit not on board",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
 				delete(g.Positions, "par")
-				return game.HoldOrder{UnitID: "fra-army-par-start", NationID: "fra"}, gm
+				return game.NewHoldOrder("fra-army-par-start", "fra"), gm
 			},
 			want: "is not on the board",
 		},

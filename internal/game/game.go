@@ -109,9 +109,12 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 		return fmt.Errorf("unit %q is not on the board", unitID)
 	}
 
-	switch order.(type) {
+	switch order := order.(type) {
 	case HoldOrder:
-	// noop: hold orders are valid and do not need to be checked
+	case MoveOrder:
+		if err := g.validateMoveOrder(order, unit, gm); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported order type %T", order)
 	}
@@ -137,4 +140,8 @@ func unitTypeFromStartingUnit(unitType gamemap.StartingUnitType) (UnitType, erro
 
 func startingUnitID(unit gamemap.StartingUnit) UnitID {
 	return UnitID(fmt.Sprintf("%s-%s-%s-start", unit.Nation, unit.Type, unit.Province))
+}
+
+func (g *Game) validateMoveOrder(order MoveOrder, unit Unit, gm *gamemap.GameMap) error {
+	return nil
 }
