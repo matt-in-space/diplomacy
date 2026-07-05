@@ -44,6 +44,14 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 		if err := g.validateMoveOrder(order, unit, gm); err != nil {
 			return err
 		}
+	case SupportHoldOrder:
+		if err := g.validateSupportHoldOrder(order, unit, gm); err != nil {
+			return err
+		}
+	case SupportMoveOrder:
+		if err := g.validateSupportMoveOrder(order, unit, gm); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported order type %T", order)
 	}
