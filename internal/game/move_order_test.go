@@ -47,6 +47,88 @@ func TestGameSubmitOrder_AcceptsMoveOrder(t *testing.T) {
 	}
 }
 
+func TestGameSubmitOrder_AcceptsConvoyedMoveOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	addArmy(t, g, "eng-army-gas-test", "eng", "gas")
+
+	order := game.NewConvoyedMoveOrder("eng-army-gas-test", "eng", "lon")
+	if err := g.SubmitOrder(order, gm); err != nil {
+		t.Fatalf("SubmitOrder failed: %v", err)
+	}
+	if got := g.Orders[order.Unit()]; got != order {
+		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+}
+
+func TestGameSubmitOrder_RejectsInvalidConvoyedMoveOrders(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(g *game.Game)
+		order game.MoveOrder
+		want  string
+	}{
+		{
+			name:  "fleet cannot move via convoy",
+			setup: func(g *game.Game) {},
+			order: game.NewConvoyedMoveOrder("fra-fleet-bre-start", "fra", "lon"),
+			want:  "must be an army to move via convoy",
+		},
+		{
+			name:  "convoy origin must be coastal",
+			setup: func(g *game.Game) {},
+			order: game.NewConvoyedMoveOrder("fra-army-par-start", "fra", "lon"),
+			want:  "convoy origin province \"par\" must be coastal",
+		},
+		{
+			name: "convoy destination must be coastal",
+			setup: func(g *game.Game) {
+				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
+			},
+			order: game.NewConvoyedMoveOrder("eng-army-gas-test", "eng", "par"),
+			want:  "convoy destination province \"par\" must be coastal",
+		},
+		{
+			name: "convoyed move cannot target current province",
+			setup: func(g *game.Game) {
+				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
+			},
+			order: game.NewConvoyedMoveOrder("eng-army-gas-test", "eng", "gas"),
+			want:  "cannot move to its current province",
+		},
+		{
+			name: "convoyed move target must exist",
+			setup: func(g *game.Game) {
+				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
+			},
+			order: game.NewConvoyedMoveOrder("eng-army-gas-test", "eng", "missing"),
+			want:  "target province \"missing\" not found",
+		},
+		{
+			name: "convoyed move cannot specify target coast",
+			setup: func(g *game.Game) {
+				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
+			},
+			order: game.MoveOrder{
+				BaseOrder:   game.BaseOrder{UnitID: "eng-army-gas-test", NationID: "eng"},
+				Target:      "lon",
+				TargetCoast: "lon",
+				ViaConvoy:   true,
+			},
+			want: "convoyed army move cannot specify target coast",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := loadWesternEuropeMap(t)
+			g := newWesternEuropeGame(t, gm)
+			tt.setup(g)
+			assertSubmitOrderErrorContains(t, g, tt.order, gm, tt.want)
+		})
+	}
+}
+
 func TestGameSubmitOrder_RejectsInvalidMoveOrders(t *testing.T) {
 	tests := []struct {
 		name  string
