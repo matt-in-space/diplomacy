@@ -38,5 +38,17 @@ func NewHoldOrder(unit UnitID, nation gamemap.NationID) HoldOrder {
 // unit of a different nation it is considered an attack order.
 type MoveOrder struct {
 	BaseOrder
-	Target gamemap.ProvinceID
+	Target      gamemap.ProvinceID
+	TargetCoast gamemap.CoastID
+}
+
+func NewMoveOrder(unit UnitID, nation gamemap.NationID, target gamemap.ProvinceID, targetCoast gamemap.CoastID) MoveOrder {
+	return MoveOrder{
+		BaseOrder: BaseOrder{
+			UnitID:   unit,
+			NationID: nation,
+		},
+		Target:      target,
+		TargetCoast: targetCoast,
+	}
 }
