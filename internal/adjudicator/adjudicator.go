@@ -27,11 +27,12 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	}
 
 	ctx := newContext(g, gm)
-	_ = ctx
+	effectiveOrders := normalizeOrders(ctx)
+	_ = effectiveOrders
 
-	// 3. Normalize missing unit orders into implicit hold orders.
-	//    effectiveOrders := normalizeOrders(ctx)
-	//    No error expected: missing orders are legal and become holds.
+	// 4. Categorize effective orders by type: hold, move, support, and convoy.
+	//    categorized, err := categorizeOrders(effectiveOrders)
+	//    Errors: unsupported order implementation. This should be rare because SubmitOrder validates order types.
 	//
 	// 4. Categorize effective orders by type: hold, move, support, and convoy.
 	//    categorized, err := categorizeOrders(effectiveOrders)
