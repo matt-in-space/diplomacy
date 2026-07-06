@@ -32,12 +32,10 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	if err != nil {
 		return Resolution{}, err
 	}
-	_ = categorized
 
-	// 5. Build potential attacks from move orders.
-	//    attacks, err := buildAttacks(ctx, categorized.moves)
-	//    Errors: invalid move order references if state was loaded from storage incorrectly.
-	//
+	attacks := buildAttacks(ctx, categorized.moves)
+	_ = attacks
+
 	// 5. Build potential attacks from move orders.
 	//    attacks, err := buildAttacks(ctx, categorized.MoveOrders)
 	//    Errors: invalid move order references if state was loaded from storage incorrectly.
