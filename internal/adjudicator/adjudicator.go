@@ -28,15 +28,15 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 
 	ctx := newContext(g, gm)
 	effectiveOrders := normalizeOrders(ctx)
-	_ = effectiveOrders
+	categorized, err := categorizeOrders(effectiveOrders)
+	if err != nil {
+		return Resolution{}, err
+	}
+	_ = categorized
 
-	// 4. Categorize effective orders by type: hold, move, support, and convoy.
-	//    categorized, err := categorizeOrders(effectiveOrders)
-	//    Errors: unsupported order implementation. This should be rare because SubmitOrder validates order types.
-	//
-	// 4. Categorize effective orders by type: hold, move, support, and convoy.
-	//    categorized, err := categorizeOrders(effectiveOrders)
-	//    Errors: unsupported order implementation. This should be rare because SubmitOrder validates order types.
+	// 5. Build potential attacks from move orders.
+	//    attacks, err := buildAttacks(ctx, categorized.moves)
+	//    Errors: invalid move order references if state was loaded from storage incorrectly.
 	//
 	// 5. Build potential attacks from move orders.
 	//    attacks, err := buildAttacks(ctx, categorized.MoveOrders)
