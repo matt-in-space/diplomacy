@@ -2,6 +2,7 @@ package adjudicator
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/matt-in-space/diplomacy/internal/game"
 	"github.com/matt-in-space/diplomacy/internal/gamemap"
@@ -9,17 +10,25 @@ import (
 
 type Resolution struct{}
 
+type resolutionContext struct {
+	game          *game.Game
+	gameMap       *gamemap.GameMap
+	units         map[game.UnitID]game.Unit
+	positions     map[gamemap.ProvinceID]game.UnitID
+	unitPositions map[game.UnitID]gamemap.ProvinceID
+	fleetCoasts   map[game.UnitID]gamemap.CoastID
+	orders        map[game.UnitID]game.Order
+}
+
 func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	err := validateInputs(g, gm)
-
 	if err != nil {
 		return Resolution{}, err
 	}
 
-	// 2. Build a resolution context from the current game state and map.
-	//    ctx, err := newContext(g, gm)
-	//    Errors: inconsistent game state, units missing positions, fleets missing coasts.
-	//
+	ctx := newContext(g, gm)
+	_ = ctx
+
 	// 3. Normalize missing unit orders into implicit hold orders.
 	//    effectiveOrders := normalizeOrders(ctx)
 	//    No error expected: missing orders are legal and become holds.
@@ -55,6 +64,24 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	// 11. Build and return a resolution result without mutating the game or map.
 	//     return buildResolution(ctx, categorized, supportIntents, cutSupports, strengths, moveResults, retreats)
 	return Resolution{}, nil
+}
+
+func newContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
+	ctx := resolutionContext{
+		game:          g,
+		gameMap:       gm,
+		units:         maps.Clone(g.Units),
+		positions:     maps.Clone(g.Positions),
+		unitPositions: make(map[game.UnitID]gamemap.ProvinceID, len(g.Units)),
+		fleetCoasts:   maps.Clone(g.FleetCoasts),
+		orders:        maps.Clone(g.Orders),
+	}
+
+	for unitID, unit := range ctx.units {
+		ctx.unitPositions[unitID] = unit.ProvinceID
+	}
+
+	return ctx
 }
 
 func validateInputs(g *game.Game, gm *gamemap.GameMap) error {
