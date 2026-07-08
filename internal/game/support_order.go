@@ -10,14 +10,16 @@ import (
 type SupportHoldOrder struct {
 	BaseOrder
 	SupportedUnit UnitID
+	Target        gamemap.ProvinceID
 }
 
-func NewSupportHoldOrder(unit UnitID, nation gamemap.NationID, supportedUnit UnitID) SupportHoldOrder {
+func NewSupportHoldOrder(unit UnitID, nation gamemap.NationID, supportedUnit UnitID, target gamemap.ProvinceID) SupportHoldOrder {
 	return SupportHoldOrder{
 		BaseOrder: BaseOrder{
 			UnitID:   unit,
 			NationID: nation,
 		},
+		Target:        target,
 		SupportedUnit: supportedUnit,
 	}
 }

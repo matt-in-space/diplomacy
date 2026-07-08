@@ -1,100 +1,143 @@
 package adjudicator
 
 import (
-	"fmt"
 	"maps"
 
 	"github.com/matt-in-space/diplomacy/internal/game"
 	"github.com/matt-in-space/diplomacy/internal/gamemap"
 )
 
-type Resolution struct{}
+type Resolution struct {
+	Turn          game.Turn
+	UnitOutcomes  map[game.UnitID]UnitOutcome
+	OrderOutcomes map[game.UnitID]OrderOutcome
+}
 
-type resolutionContext struct {
-	game          *game.Game
-	gameMap       *gamemap.GameMap
-	units         map[game.UnitID]game.Unit
-	positions     map[gamemap.ProvinceID]game.UnitID
-	unitPositions map[game.UnitID]gamemap.ProvinceID
-	fleetCoasts   map[game.UnitID]gamemap.CoastID
-	orders        map[game.UnitID]game.Order
+type UnitOutcomeType string
+
+const (
+	UnitOutcomeMove    UnitOutcomeType = "move"
+	UnitOutcomeHold    UnitOutcomeType = "hold"
+	UnitOutcomeRetreat UnitOutcomeType = "retreat"
+)
+
+type UnitOutcome struct {
+	UnitID game.UnitID
+	Type   UnitOutcomeType
+	From   gamemap.ProvinceID
+	To     gamemap.ProvinceID
+	Coast  gamemap.CoastID
+}
+
+type ReasonCode string
+
+const (
+	ReasonSuccess ReasonCode = "success"
+)
+
+type OrderOutcome struct {
+	UnitID  game.UnitID
+	Order   game.Order
+	Success bool
+	Reason  ReasonCode
 }
 
 func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
-	err := validateInputs(g, gm)
-	if err != nil {
-		return Resolution{}, err
+	// Main concepts
+	// - All units start on a province
+	// - There are 3 outcomes: move, hold, retreat regardless of the order
+	// - We figure all of the intents first: intends to move, intends to support, and intends to convoy
+	// - Then we cut support and convoy orders since those don't move and anyone moving into their
+	// provinces will take precedence over them
+	// - Then we resolve the movement and attack orders after those are all that are left
+	//
+	// Order of operations
+	// - Get the effective orders, which creates default Hold orders for units that have no orders
+	// - Categorize the intents of the orders into groups of move, support, and convoy. Each of these
+	// should be accessed by the *target* province
+	// - Cancel any supports or convoys that don't match the move order
+	// - Then cancel any supports or convoys that are disrupted by an enemy move
+	// - Finally attempt all the moves that can still occur, using support to determine if a move
+	// is successful or note
+
+	effectiveOrders := normalizeOrders(g)
+	// intendedActions := categorizeIntents(effectiveOrders)
+
+	res := Resolution{
+		Turn:          g.Turn,
+		UnitOutcomes:  make(map[game.UnitID]UnitOutcome),
+		OrderOutcomes: make(map[game.UnitID]OrderOutcome),
 	}
 
-	ctx := newContext(g, gm)
-	effectiveOrders := normalizeOrders(ctx)
-	categorized, err := categorizeOrders(effectiveOrders)
-	if err != nil {
-		return Resolution{}, err
+	for unitID, order := range effectiveOrders {
+		pos := g.Units[unitID].ProvinceID
+		uo := UnitOutcome{
+			UnitID: unitID,
+			From:   pos,
+		}
+		oo := OrderOutcome{
+			UnitID: unitID,
+			Order:  order,
+		}
+
+		switch order := order.(type) {
+		case game.MoveOrder:
+			uo.Type = UnitOutcomeMove
+			uo.To = order.Target
+			uo.Coast = order.TargetCoast
+			oo.Success = true
+			oo.Reason = ReasonSuccess
+
+		}
+
+		res.UnitOutcomes[unitID] = uo
+		res.OrderOutcomes[unitID] = oo
 	}
 
-	attacks := buildAttacks(ctx, categorized.moves)
-	_ = attacks
-
-	// 5. Build potential attacks from move orders.
-	//    attacks, err := buildAttacks(ctx, categorized.MoveOrders)
-	//    Errors: invalid move order references if state was loaded from storage incorrectly.
-	//
-	// 6. Determine which support orders match the supported unit's actual order.
-	//    supportIntents := buildSupportIntents(ctx, categorized)
-	//    No error expected: mismatched support intent simply does not apply.
-	//
-	// 7. Determine which matching supports are cut by attacks.
-	//    cutSupports := determineCutSupports(ctx, attacks, supportIntents)
-	//    No error expected: this is derived from known attacks/supports.
-	//
-	// 8. Compute attack and defense strengths using uncut supports.
-	//    strengths := computeStrengths(ctx, attacks, supportIntents, cutSupports)
-	//    No error expected: strength is derived data.
-	//
-	// 9. Resolve move contests, bounces, successful moves, and dislodgements.
-	//    moveResults := resolveMoves(ctx, attacks, strengths)
-	//    No error expected for normal resolution; unresolved paradoxes may later require explicit result states.
-	//
-	// 10. Compute retreat requirements for dislodged units.
-	//     retreats := buildRetreatRequirements(ctx, moveResults)
-	//     No error expected: retreat options are derived from the resolved board state.
-	//
-	// 11. Build and return a resolution result without mutating the game or map.
-	//     return buildResolution(ctx, categorized, supportIntents, cutSupports, strengths, moveResults, retreats)
-	return Resolution{}, nil
+	return res, nil
 }
 
-func newContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
-	ctx := resolutionContext{
-		game:          g,
-		gameMap:       gm,
-		units:         maps.Clone(g.Units),
-		positions:     maps.Clone(g.Positions),
-		unitPositions: make(map[game.UnitID]gamemap.ProvinceID, len(g.Units)),
-		fleetCoasts:   maps.Clone(g.FleetCoasts),
-		orders:        maps.Clone(g.Orders),
+func normalizeOrders(g *game.Game) map[game.UnitID]game.Order {
+	orders := make(map[game.UnitID]game.Order)
+	maps.Copy(orders, g.Orders)
+
+	for unitID, unit := range g.Units {
+		if _, ok := orders[unitID]; !ok {
+			orders[unitID] = game.NewHoldOrder(unitID, unit.NationID)
+		}
 	}
 
-	for unitID, unit := range ctx.units {
-		ctx.unitPositions[unitID] = unit.ProvinceID
-	}
-
-	return ctx
+	return orders
 }
 
-func validateInputs(g *game.Game, gm *gamemap.GameMap) error {
-	if g == nil {
-		return fmt.Errorf("game is nil")
+type intents struct {
+	move    map[gamemap.ProvinceID][]game.Order
+	support map[gamemap.ProvinceID][]game.Order
+	convoy  map[gamemap.ProvinceID][]game.Order
+}
+
+func categorizeIntents(orders map[game.UnitID]game.Order) intents {
+	i := intents{
+		move:    make(map[gamemap.ProvinceID][]game.Order),
+		support: make(map[gamemap.ProvinceID][]game.Order),
+		convoy:  make(map[gamemap.ProvinceID][]game.Order),
 	}
-	if gm == nil {
-		return fmt.Errorf("map is nil")
+
+	for _, order := range orders {
+		switch o := order.(type) {
+		case game.MoveOrder:
+			i.move[o.Target] = append(i.move[o.Target], o)
+		case game.SupportHoldOrder:
+			i.support[o.Target] = append(i.support[o.Target], o)
+		case game.SupportMoveOrder:
+			i.support[o.Target] = append(i.support[o.Target], o)
+		case game.ConvoyOrder:
+			i.convoy[o.From] = append(i.convoy[o.From], o)
+		default:
+			panic("unhandled order type")
+		}
+
 	}
-	if g.MapID != gm.ID {
-		return fmt.Errorf("map ID mismatch")
-	}
-	if g.Turn.Phase != game.ResolveOrders {
-		return fmt.Errorf("wrong turn phase")
-	}
-	return nil
+
+	return i
 }

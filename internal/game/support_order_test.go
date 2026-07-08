@@ -13,7 +13,7 @@ func TestGameSubmitOrder_AcceptsSupportOrders(t *testing.T) {
 	}{
 		{
 			name:  "support hold",
-			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-fleet-bre-start"),
+			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-fleet-bre-start", "bre"),
 		},
 		{
 			name:  "support move",
@@ -50,13 +50,13 @@ func TestGameSubmitOrder_RejectsInvalidSupportOrders(t *testing.T) {
 		{
 			name:  "support missing unit",
 			setup: func(g *game.Game) {},
-			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "missing"),
+			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "missing", "par"),
 			want:  "supported unit \"missing\" not found",
 		},
 		{
 			name:  "support self",
 			setup: func(g *game.Game) {},
-			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-army-par-start"),
+			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-army-par-start", "par"),
 			want:  "cannot support itself",
 		},
 		{
@@ -64,13 +64,13 @@ func TestGameSubmitOrder_RejectsInvalidSupportOrders(t *testing.T) {
 			setup: func(g *game.Game) {
 				delete(g.Positions, "bre")
 			},
-			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-fleet-bre-start"),
+			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-fleet-bre-start", "bre"),
 			want:  "supported unit \"fra-fleet-bre-start\" is not on the board",
 		},
 		{
 			name:  "support hold cannot reach province",
 			setup: func(g *game.Game) {},
-			order: game.NewSupportHoldOrder("eng-fleet-lon-start", "eng", "fra-army-par-start"),
+			order: game.NewSupportHoldOrder("eng-fleet-lon-start", "eng", "fra-army-par-start", "par"),
 			want:  "fleet cannot move to inland province",
 		},
 		{

@@ -2,7 +2,6 @@ package adjudicator_test
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/matt-in-space/diplomacy/internal/adjudicator"
@@ -10,96 +9,79 @@ import (
 	"github.com/matt-in-space/diplomacy/internal/gamemap"
 )
 
-func TestResolve_ValidatesInputs(t *testing.T) {
-	tests := []struct {
-		name  string
-		setup func(t *testing.T) (*game.Game, *gamemap.GameMap)
-		want  string
-	}{
-		{
-			name: "nil game",
-			setup: func(t *testing.T) (*game.Game, *gamemap.GameMap) {
-				return nil, loadWesternEuropeMap(t)
-			},
-			want: "game is nil",
-		},
-		{
-			name: "nil map",
-			setup: func(t *testing.T) (*game.Game, *gamemap.GameMap) {
-				g, _ := newResolutionGame(t)
-				return g, nil
-			},
-			want: "map is nil",
-		},
-		{
-			name: "map ID mismatch",
-			setup: func(t *testing.T) (*game.Game, *gamemap.GameMap) {
-				g, gm := newResolutionGame(t)
-				gm.ID = "other-map"
-				return g, gm
-			},
-			want: "map ID mismatch",
-		},
-		{
-			name: "wrong phase",
-			setup: func(t *testing.T) (*game.Game, *gamemap.GameMap) {
-				gm := loadWesternEuropeMap(t)
-				g := newGame(t, gm)
-				return g, gm
-			},
-			want: "wrong turn phase",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g, gm := tt.setup(t)
-			_, err := adjudicator.Resolve(g, gm)
-			if err == nil {
-				t.Fatalf("expected Resolve to fail")
-			}
-			if !strings.Contains(err.Error(), tt.want) {
-				t.Fatalf("Resolve error = %q, want substring %q", err.Error(), tt.want)
-			}
-		})
-	}
-}
-
-func TestResolve_AcceptsValidInputs(t *testing.T) {
-	g, gm := newResolutionGame(t)
-
-	_, err := adjudicator.Resolve(g, gm)
-	if err != nil {
-		t.Fatalf("Resolve failed: %v", err)
-	}
-}
-
-func newResolutionGame(t *testing.T) (*game.Game, *gamemap.GameMap) {
-	t.Helper()
-
+func TestResolve_UnhinderedMovement(t *testing.T) {
+	t.Parallel()
 	gm := loadWesternEuropeMap(t)
-	g := newGame(t, gm)
-	g.Turn.Phase = game.ResolveOrders
-
-	return g, gm
-}
-
-func newGame(t *testing.T, gm *gamemap.GameMap) *game.Game {
-	t.Helper()
-
-	g, err := game.NewGame(game.NewGameConfig{
-		ID: "game-1",
+	cfg := game.NewGameConfig{
+		ID: "test",
 		Assignments: map[gamemap.NationID]game.PlayerID{
-			"eng": "player-1",
-			"fra": "player-2",
+			"eng": "pe",
+			"fra": "pf",
 		},
-	}, gm)
+	}
+	g, _ := game.NewGame(cfg, gm)
+	o := game.NewMoveOrder("fra-army-par-start", "fra", "gas", "")
+
+	err := g.SubmitOrder(o, gm)
 	if err != nil {
-		t.Fatalf("NewGame failed: %v", err)
+		t.Fatalf("submit order: %v", err)
 	}
 
-	return g
+	res, err := adjudicator.Resolve(g, gm)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	totalUnits := len(g.Units)
+
+	if len(res.OrderOutcomes) != totalUnits {
+		t.Fatalf("expected %d order outcomes, got %d", totalUnits, len(res.OrderOutcomes))
+	}
+
+	if len(res.UnitOutcomes) != totalUnits {
+		t.Fatalf("expected %d unit outcomes, got %d", totalUnits, len(res.UnitOutcomes))
+	}
+
+	oo := res.OrderOutcomes["fra-army-par-start"]
+
+	if oo.Success != true {
+		t.Fatalf("expected success, got %v", oo.Success)
+	}
+
+	if oo.Reason != adjudicator.ReasonSuccess {
+		t.Fatalf("expected no reason, got %s", oo.Reason)
+	}
+
+	uo := res.UnitOutcomes["fra-army-par-start"]
+
+	if uo.Type != adjudicator.UnitOutcomeMove {
+		t.Fatalf("expected move outcome, got %s", uo.Type)
+	}
+
+	if uo.From != gamemap.ProvinceID("par") {
+		t.Fatalf("expected from province to be par-start, got %s", uo.From)
+	}
+
+	if uo.To != gamemap.ProvinceID("gas") {
+		t.Fatalf("expected to province to be gas, got %s", uo.To)
+	}
 }
+
+// func TestResolve_AttackOfEqualStrength(t *testing.T) {
+
+// }
+
+// func TestResolve_SupportedAttack(t *testing.T) {
+
+// }
+
+// func TestResolve_UnitsSwapPositions(t *testing.T) {
+
+// }
+
+// func TestResolve_UnitsMoveInACircle(t *testing.T) {
+
+// }
 
 func loadWesternEuropeMap(t *testing.T) *gamemap.GameMap {
 	t.Helper()
