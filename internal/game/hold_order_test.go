@@ -9,7 +9,7 @@ import (
 func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 	g := newWesternEuropeGame(t, gm)
-	order := game.NewHoldOrder("fra-army-par-start", "fra")
+	order := game.NewHoldOrder("fra-army-par-start", "fra", "par")
 
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
@@ -21,5 +21,15 @@ func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {
 	}
 	if got != order {
 		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+}
+
+func TestGameSubmitOrder_RejectsHoldOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	order := game.NewHoldOrder("fra-army-par-start", "fra", "gas")
+
+	if err := g.SubmitOrder(order, gm); err == nil {
+		t.Fatalf("expected error, got nil")
 	}
 }

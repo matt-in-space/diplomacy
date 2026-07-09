@@ -9,6 +9,11 @@ import (
 	"github.com/matt-in-space/diplomacy/internal/gamemap"
 )
 
+// Units are
+// map[eng-fleet-lon-start:{eng-fleet-lon-start eng lon fleet}
+// fra-army-par-start:{fra-army-par-start fra par army}
+// fra-fleet-bre-start:{fra-fleet-bre-start fra bre fleet}]
+
 func TestResolve_UnhinderedMovement(t *testing.T) {
 	t.Parallel()
 	gm := loadWesternEuropeMap(t)
@@ -96,9 +101,60 @@ func TestResolve_UnitsWithoutOrdersDefaultToHold(t *testing.T) {
 	}
 }
 
-// func TestResolve_AttackOfEqualStrength(t *testing.T) {
+func TestResolve_AttackOfEqualStrength(t *testing.T) {
+	t.Parallel()
+	gm := loadWesternEuropeMap(t)
+	cfg := game.NewGameConfig{
+		ID: "test",
+		Assignments: map[gamemap.NationID]game.PlayerID{
+			"eng": "pe",
+			"fra": "pf",
+		},
+	}
+	g, _ := game.NewGame(cfg, gm)
 
-// }
+	u := game.Unit{
+		ID:         "eng-1",
+		NationID:   "eng",
+		ProvinceID: "gas",
+		Type:       game.UnitTypeArmy,
+	}
+
+	g.Units[u.ID] = u
+	g.Positions["gas"] = u.ID
+
+	ho := game.NewHoldOrder(u.ID, u.NationID, u.ProvinceID)
+	mo := game.NewMoveOrder("fra-army-par-start", "fra", "gas", "")
+
+	g.SubmitOrder(ho, gm)
+	g.SubmitOrder(mo, gm)
+
+	res, err := adjudicator.Resolve(g, gm)
+
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	eoo := res.OrderOutcomes[u.ID]
+	euo := res.UnitOutcomes[u.ID]
+
+	if euo.Type != adjudicator.UnitOutcomeHold {
+		t.Fatalf("expected hold outcome, got %s", euo.Type)
+	}
+	if eoo.Reason != adjudicator.ReasonSuccess {
+		t.Fatalf("expected success reason, got %s", eoo.Reason)
+	}
+
+	foo := res.OrderOutcomes["fra-army-par-start"]
+	fuo := res.UnitOutcomes["fra-army-par-start"]
+
+	if foo.Reason != adjudicator.ReasonWeakAttack {
+		t.Fatalf("expected weak attack reason, got %s", foo.Reason)
+	}
+	if fuo.Type != adjudicator.UnitOutcomeHold {
+		t.Fatalf("expected hold outcome, got %s", fuo.Type)
+	}
+}
 
 // func TestResolve_SupportedAttack(t *testing.T) {
 

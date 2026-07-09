@@ -2,6 +2,7 @@ package adjudicator
 
 import (
 	"maps"
+	"reflect"
 
 	"github.com/matt-in-space/diplomacy/internal/game"
 	"github.com/matt-in-space/diplomacy/internal/gamemap"
@@ -32,7 +33,8 @@ type UnitOutcome struct {
 type ReasonCode string
 
 const (
-	ReasonSuccess ReasonCode = "success"
+	ReasonSuccess    ReasonCode = "success"
+	ReasonWeakAttack ReasonCode = "weak-attack"
 )
 
 type OrderOutcome struct {
@@ -44,7 +46,8 @@ type OrderOutcome struct {
 
 func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	effectiveOrders := normalizeOrders(g)
-	// intendedActions := categorizeIntents(effectiveOrders)
+	intendedActions := categorizeIntents(effectiveOrders)
+	_ = intendedActions
 
 	res := Resolution{
 		Turn:          g.Turn,
@@ -91,7 +94,7 @@ func normalizeOrders(g *game.Game) map[game.UnitID]game.Order {
 
 	for unitID, unit := range g.Units {
 		if _, ok := orders[unitID]; !ok {
-			orders[unitID] = game.NewHoldOrder(unitID, unit.NationID)
+			orders[unitID] = game.NewHoldOrder(unitID, unit.NationID, unit.ProvinceID)
 		}
 	}
 
@@ -102,6 +105,7 @@ type intents struct {
 	move    map[gamemap.ProvinceID][]game.Order
 	support map[gamemap.ProvinceID][]game.Order
 	convoy  map[gamemap.ProvinceID][]game.Order
+	hold    map[gamemap.ProvinceID][]game.Order
 }
 
 func categorizeIntents(orders map[game.UnitID]game.Order) intents {
@@ -109,6 +113,7 @@ func categorizeIntents(orders map[game.UnitID]game.Order) intents {
 		move:    make(map[gamemap.ProvinceID][]game.Order),
 		support: make(map[gamemap.ProvinceID][]game.Order),
 		convoy:  make(map[gamemap.ProvinceID][]game.Order),
+		hold:    make(map[gamemap.ProvinceID][]game.Order),
 	}
 
 	for _, order := range orders {
@@ -121,8 +126,10 @@ func categorizeIntents(orders map[game.UnitID]game.Order) intents {
 			i.support[o.Target] = append(i.support[o.Target], o)
 		case game.ConvoyOrder:
 			i.convoy[o.From] = append(i.convoy[o.From], o)
+		case game.HoldOrder:
+			i.hold[o.Target] = append(i.hold[o.Target], o)
 		default:
-			panic("unhandled order type")
+			panic("unexpected order type: " + reflect.TypeOf(o).String())
 		}
 
 	}
