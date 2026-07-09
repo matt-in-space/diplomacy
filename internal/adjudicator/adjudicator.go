@@ -43,23 +43,6 @@ type OrderOutcome struct {
 }
 
 func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
-	// Main concepts
-	// - All units start on a province
-	// - There are 3 outcomes: move, hold, retreat regardless of the order
-	// - We figure all of the intents first: intends to move, intends to support, and intends to convoy
-	// - Then we cut support and convoy orders since those don't move and anyone moving into their
-	// provinces will take precedence over them
-	// - Then we resolve the movement and attack orders after those are all that are left
-	//
-	// Order of operations
-	// - Get the effective orders, which creates default Hold orders for units that have no orders
-	// - Categorize the intents of the orders into groups of move, support, and convoy. Each of these
-	// should be accessed by the *target* province
-	// - Cancel any supports or convoys that don't match the move order
-	// - Then cancel any supports or convoys that are disrupted by an enemy move
-	// - Finally attempt all the moves that can still occur, using support to determine if a move
-	// is successful or note
-
 	effectiveOrders := normalizeOrders(g)
 	// intendedActions := categorizeIntents(effectiveOrders)
 
@@ -85,6 +68,11 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 			uo.Type = UnitOutcomeMove
 			uo.To = order.Target
 			uo.Coast = order.TargetCoast
+			oo.Success = true
+			oo.Reason = ReasonSuccess
+
+		case game.HoldOrder:
+			uo.Type = UnitOutcomeHold
 			oo.Success = true
 			oo.Reason = ReasonSuccess
 

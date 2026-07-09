@@ -67,6 +67,35 @@ func TestResolve_UnhinderedMovement(t *testing.T) {
 	}
 }
 
+func TestResolve_UnitsWithoutOrdersDefaultToHold(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	cfg := game.NewGameConfig{
+		ID: "test",
+		Assignments: map[gamemap.NationID]game.PlayerID{
+			"eng": "pe",
+			"fra": "pf",
+		},
+	}
+	g, _ := game.NewGame(cfg, gm)
+
+	res, err := adjudicator.Resolve(g, gm)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	for unitID, _ := range g.Units {
+		oo := res.OrderOutcomes[unitID]
+		if oo.Reason != adjudicator.ReasonSuccess {
+			t.Fatalf("expected success reason, got %s", oo.Reason)
+		}
+
+		uo := res.UnitOutcomes[unitID]
+		if uo.Type != adjudicator.UnitOutcomeHold {
+			t.Fatalf("expected hold outcome, got %s", uo.Type)
+		}
+	}
+}
+
 // func TestResolve_AttackOfEqualStrength(t *testing.T) {
 
 // }
@@ -76,6 +105,10 @@ func TestResolve_UnhinderedMovement(t *testing.T) {
 // }
 
 // func TestResolve_UnitsSwapPositions(t *testing.T) {
+
+// }
+
+// func TestResolve_UnitReplacesAnother(t *testing.T) {
 
 // }
 
