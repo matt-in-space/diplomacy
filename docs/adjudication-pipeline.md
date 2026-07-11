@@ -100,7 +100,56 @@ We can assume any movements that result in a single unit in a province are valid
 #### Calculate strengths and resolve conflicts
 All remaining units should be move attempts with or without support. For each move, calculate the strength of the unit and resolve any conflicts with other units in the same province. Units can either move, hold, or be dislodged and will require a retreat order in the subsequent game phase.
 
-## Tests
+### Implementation Order
+The internal resolution model should be designed up front, but implemented incrementally. `Resolve` must remain non-mutating throughout, and each phase should have independent tests before proceeding to the next.
 
+#### Phase 1: Foundations and basic movement
+- Define the resolution, outcome, and reason-code types.
+- Validate resolver inputs, including the game map and `ResolveOrders` phase.
+- Normalize missing orders to implicit holds without modifying the game.
+- Categorize effective orders into lookup-friendly internal structures.
+- Resolve uncontested moves, competing moves, and attacks against occupied provinces.
+- Add dependency handling for move chains, direct swaps, and circular movement.
+
+#### Phase 2: Supports and dislodgement
+- Match support intents against effective orders.
+- Treat support as support into a province rather than requiring coast notation to match the supported move.
+- Determine support cuts, including the foreign-attack and supported-province exceptions.
+- Calculate attack and defense strength.
+- Enforce the rule that a nation cannot dislodge its own unit.
+- Produce dislodgement and retreat outcomes.
+- Align support-order submission validation with province-based support matching.
+
+#### Phase 3: Ordinary convoys
+- Match convoyed army moves with fleet convoy orders.
+- Find complete and alternate routes through convoying fleets in water provinces.
+- Permit convoyed direct swaps.
+- Disrupt a route only when a fleet on that route is dislodged.
+- Allow a convoy to succeed when at least one complete route remains intact.
+
+#### Phase 4: Convoy paradox detection
+- Re-evaluate convoy routes, fleet dislodgements, support cuts, and movement outcomes until the result stabilizes.
+- Detect repeated dependency states instead of looping indefinitely.
+- Return a defined error for convoy paradoxes.
+- Defer choosing and implementing a paradox-resolution policy until ordinary adjudication is stable.
+
+## Tests
 ### Test Setup
+The test setup can load a game with the includeed Western Europe data file. This will start with two nations and three game units. For each test we will need to manually adjust the game state as described above, if needed, and add the necessary orders. We will then assert that the result of the adjudication pipeline matches the expected outcome.
+
 ### Test Cases
+The following scenarios should be tested for:
+- Units without orders default to hold
+- A single unit moves into an unoccupied province
+- Two units on the same nation cannot directly trade positions
+- Units can move into a circle to trade positions (ex a triangle)
+- A unit attacking a province with one defender results in a draw
+- A supported unit attacking a single defender results in the defender retret
+- A supported unit attacking another supported unit results in a draw
+- A supported unit receives no support if the supporting unit is cut. Results in a draw
+- A support order fails if the unit does not hold in the expected province
+- A support order fails if the supported unit does not move to the expected province
+- A unit can move across a full convoy
+- A unit cannot move if any of the convoy units are cut
+- A unit cannot move if any of the convoy units do not respect the convoy
+- A unit can move across multiple water spaces if supported by convoys
