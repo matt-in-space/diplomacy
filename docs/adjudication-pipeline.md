@@ -1,14 +1,14 @@
-# Adjudication Pipline
+# Adjudication Pipeline
 
 ## Overview
 The key component and challenge of a Diplomacy game engine is the adjudication pipline. While the rules are relatively simple, all unit orders must be resolved at once rather than sequentially (at least as far as the user experiences it). There are also numerous edge cases to consider. Still, by following a simple, logic path I believe most of the edge cases will be handled. Additionally, it should be built in a way that, if a new edge case is discovered, it can be easily added without modifying the existing logic.
 
-## Implmentation
+## Implementation
 ### Setup
 #### Game data structure
 The primary entity is the `Game` struct. It is the container for all game state and includes methods that allow users to submit unit orders. Logically, there is a difference between the act of submitting orders versus the act of resolving them. When an order is submitted via the `game.SubmitOrder()` method, it is validated that the order can actually be submitted based on the allowed submission parameters, ex. that the unit exists and is owned by the submitting player nation. Adjudication is the act of actually resolving them. For example, you can legally submit an order for two units to trade places. But, it is the adjudication process that determines that they cannot actually do that.
 
-In addition to the `Game` there is a `GameMap`game. This is primarily a reference object that denotes all of the provices and connections between them. It is referenced by the `Game`, but is not part of if. When adding orders or adjudicating the game the `GameMap` is passed in to the appropriate functions.
+In addition to the `Game` there is a `GameMap` game. This is primarily a reference object that denotes all of the provices and connections between them. It is referenced by the `Game`, but is not part of if. When adding orders or adjudicating the game the `GameMap` is passed in to the appropriate functions.
 
 The `Game` also stores the current state of units on the map. The primary record is the `Unit`, which is a struct noting the unit type, location, and owner. The `Game` includes a few lookup tables to efficiently access necessary data. These are:
 
@@ -94,44 +94,11 @@ Any supporting units will only provide support if the unit they are supporting m
 #### Build map of effective convoys
 Similar to support, any convoy orders will only be valid if the unit they are convoying matches the expected move and the convoy is not cut off by an attack. If a convoy fails then all fleets involved in the convoy will be treated as failed.
 
-#### Resolve all indended movements to provinces with a single final unit
+#### Resolve all intended movements to provinces with a single final unit
 We can assume any movements that result in a single unit in a province are valid if the unit can move to that province. These units can all be resolved to their final positions.
 
 #### Calculate strengths and resolve conflicts
 All remaining units should be move attempts with or without support. For each move, calculate the strength of the unit and resolve any conflicts with other units in the same province. Units can either move, hold, or be dislodged and will require a retreat order in the subsequent game phase.
-
-### Implementation Order
-The internal resolution model should be designed up front, but implemented incrementally. `Resolve` must remain non-mutating throughout, and each phase should have independent tests before proceeding to the next.
-
-#### Phase 1: Foundations and basic movement
-- Define the resolution, outcome, and reason-code types.
-- Validate resolver inputs, including the game map and `ResolveOrders` phase.
-- Normalize missing orders to implicit holds without modifying the game.
-- Categorize effective orders into lookup-friendly internal structures.
-- Resolve uncontested moves, competing moves, and attacks against occupied provinces.
-- Add dependency handling for move chains, direct swaps, and circular movement.
-
-#### Phase 2: Supports and dislodgement
-- Match support intents against effective orders.
-- Treat support as support into a province rather than requiring coast notation to match the supported move.
-- Determine support cuts, including the foreign-attack and supported-province exceptions.
-- Calculate attack and defense strength.
-- Enforce the rule that a nation cannot dislodge its own unit.
-- Produce dislodgement and retreat outcomes.
-- Align support-order submission validation with province-based support matching.
-
-#### Phase 3: Ordinary convoys
-- Match convoyed army moves with fleet convoy orders.
-- Find complete and alternate routes through convoying fleets in water provinces.
-- Permit convoyed direct swaps.
-- Disrupt a route only when a fleet on that route is dislodged.
-- Allow a convoy to succeed when at least one complete route remains intact.
-
-#### Phase 4: Convoy paradox detection
-- Re-evaluate convoy routes, fleet dislodgements, support cuts, and movement outcomes until the result stabilizes.
-- Detect repeated dependency states instead of looping indefinitely.
-- Return a defined error for convoy paradoxes.
-- Defer choosing and implementing a paradox-resolution policy until ordinary adjudication is stable.
 
 ## Tests
 ### Test Setup
@@ -153,3 +120,32 @@ The following scenarios should be tested for:
 - A unit cannot move if any of the convoy units are cut
 - A unit cannot move if any of the convoy units do not respect the convoy
 - A unit can move across multiple water spaces if supported by convoys
+
+### Dependency Graph for Order Resolution
+
+To handle complex interdependencies and ensure correct adjudication order, a dependency graph is constructed. This graph visualizes how orders influence each other, enabling a systematic resolution process and detection of cycles.
+
+#### Graph Structure
+
+*   **Nodes:** Each unique unit's order for the current turn phase is represented as a node in the graph.
+*   **Edges:** Directed edges (`U -> V`) represent a dependency where the outcome or validity of order `U` directly influences order `V`.
+    *   **Move Order (`M`) influences Support (`S`):** `M -> S` because the intended move of `M` is a prerequisite for `S`'s validity. If `M` fails to move as intended, `S` becomes invalid.
+    *   **Attack Order (`A`) influences Move (`M`):** `A -> M` if `A` targets the same province as `M`. `A`'s outcome can cause `M` to bounce or be dislodged.
+    *   **Attack Order (`A`) influences Support (`S`):** `A -> S` if `A`'s resolution could potentially cut the support provided by `S`. This includes attacks on the supported unit/province or the supporting unit.
+    *   **Convoy Order (`C`) enables Move (`M`):** `C -> M` if `M` relies on `C` for naval movement.
+    *   **Attack Order (`A`) influences Convoy (`C`):** `A -> C` if `A` targets a fleet involved in `C` and could dislodge it, thereby disrupting the convoy.
+
+#### Pre-processing and Filtering
+
+Before constructing the graph, preliminary steps are taken to simplify it:
+1.  **Normalize Orders:** All units are assigned an effective order, defaulting to 'hold' if none is explicitly submitted.
+2.  **Validate Support/Convoy Intentions:** Support and convoy orders are checked against the *intended* movements of their targets. Orders with clearly mismatched targets are filtered out early, reducing graph complexity.
+
+#### Graph Population and Traversal
+
+1.  **Initialization:** The `indegree` map is populated, counting incoming dependencies for each order (node). A queue is initialized with all orders having an indegree of 0.
+2.  **Kahn's Algorithm:** The graph is traversed using a topological sort (e.g., Kahn's algorithm):
+    *   Orders with no unresolved dependencies (indegree 0) are dequeued and processed.
+    *   As an order is resolved, the indegrees of orders that depend on it are decremented. If an order's indegree drops to 0, it's added to the queue.
+3.  **Conflict Resolution:** Conflicts (multiple orders targeting the same province/unit) are resolved *during* the traversal as orders become ready. The outcome of conflicts can affect subsequent dependencies.
+4.  **Cycle Detection:** If, upon completion of the traversal, the count of processed orders is less than the total number of effective orders, a cycle is detected. Orders within a cycle cannot be resolved linearly and typically result in a draw or bounce outcome according to game rules.

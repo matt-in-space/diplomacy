@@ -40,9 +40,7 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 
 	switch order := order.(type) {
 	case HoldOrder:
-		if err := g.validateHoldOrder(order, unit, gm); err != nil {
-			return err
-		}
+		// noop: hold orders have no additional validation
 	case MoveOrder:
 		if err := g.validateMoveOrder(order, unit, gm); err != nil {
 			return err
