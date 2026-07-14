@@ -64,8 +64,10 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	}
 
 	ctx := newResolutionContext(g)
+
 	ctx.normalizeOrders()
 	ctx.categorizeOrders()
+	ctx.buildDefaultResolutions()
 	ctx.buildIntendedEndingPositions()
 	ctx.pruneMisalignedOrders()
 
@@ -157,7 +159,16 @@ func (rc *resolutionContext) categorizeOrders() {
 	}
 }
 
+func (rc *resolutionContext) buildDefaultResolutions() {
+	for unitID, unit := range rc.units {
+		coast := rc.fleetCoasts[unitID]
+		rc.unitOutcomes[unitID] = createUnitHoldOutcome(unit, coast)
+	}
+}
+
 func (rc *resolutionContext) pruneMisalignedOrders() {
+	// A supporting unit attempting to support a held province fails if the unit
+	// being provided support does not hold in that province
 	for _, order := range rc.supportHoldOrders {
 		_, ok := rc.holdOrders[order.SupportedUnit]
 		if !ok {
@@ -169,6 +180,8 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 		rc.effectiveSupportHoldOrders[order.UnitID] = order
 	}
 
+	// Similarly, supporting a move order fails if that unit either does not move, or it
+	// moves to an unexpected province
 	for _, order := range rc.supportMoveOrders {
 		move, ok := rc.moveOrders[order.SupportedUnit]
 		if !ok {
@@ -183,6 +196,10 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 		}
 		rc.effectiveSupportMoveOrders[order.UnitID] = order
 	}
+
+	// Convoys can fail in two directions. The moving unit will fail if any of the expected
+	// convoyed units it not explicitly ordered to convoy that unit. Likewise, any convoying
+	// units will fail if either the moving unit
 }
 
 func createOrderFailOutcome(order game.Order, reason ReasonCode) OrderOutcome {
@@ -198,5 +215,15 @@ func createOrderSuccessOutcome(order game.Order) OrderOutcome {
 		Order:   order,
 		Success: true,
 		Reason:  ReasonSuccess,
+	}
+}
+
+func createUnitHoldOutcome(unit game.Unit, coast gamemap.CoastID) UnitOutcome {
+	return UnitOutcome{
+		UnitID: unit.ID,
+		Type:   UnitOutcomeHold,
+		From:   unit.ProvinceID,
+		To:     unit.ProvinceID,
+		Coast:  coast,
 	}
 }
