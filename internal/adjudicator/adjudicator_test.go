@@ -168,15 +168,15 @@ func TestResolve_Support(t *testing.T) {
 		{
 			name: "support move fails when supported unit moves to different province",
 			units: []unitSpec{
-				army("fra-a-par", "fra", "par"), // Supported unit
+				army("fra-a-gas", "fra", "gas"), // Supported unit
 				army("fra-a-bre", "fra", "bre"), // Supporting unit
 			},
 			orders: []game.Order{
-				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
-				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "spa", ""), // Support for SPA, but unit moves to GAS
+				game.NewMoveOrder("fra-a-gas", "fra", "spa", ""),                     // Moves to 'spa'
+				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-gas", "par", ""), // Supports a move to 'par' instead
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess),     // Unit moves successfully
+				moveOutcome("fra-a-gas", "gas", "spa", true, adjudicator.ReasonSuccess),     // Unit moves successfully
 				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonMisalignedSupport), // Support fails: supported unit moved elsewhere
 			},
 		},
@@ -342,13 +342,12 @@ func runScenarios(t *testing.T, scenarios []scenario) {
 			gm := loadWesternEuropeMap(t)
 			g := newScenarioGame(t, gm, tt.units)
 
-			// IMPORTANT: Enforce the correct phase for adjudication.
-			// Advance the turn to ResolveOrders phase.
+			// Orders are submitted during the AcceptOrders phase, then the turn is
+			// advanced to ResolveOrders for adjudication.
+			submitOrders(t, g, gm, tt.orders...)
 			for g.Turn.Phase != game.ResolveOrders {
 				g.Turn = g.Turn.Next()
 			}
-
-			submitOrders(t, g, gm, tt.orders...)
 
 			got, err := adjudicator.Resolve(g, gm)
 			if err != nil {
@@ -403,13 +402,9 @@ func newScenarioGame(t *testing.T, gm *gamemap.GameMap, units []unitSpec) *game.
 		}
 	}
 
-	// Ensure the game's initial turn phase is set correctly for testing adjudication.
-	// We need to ensure it's ResolveOrders for the adjudicator.
-	g.Turn = game.StartingTurn() // Starts at Spring, AcceptOrders, Year 1
-	// Advance turn to ResolveOrders phase.
-	for g.Turn.Phase != game.ResolveOrders {
-		g.Turn = g.Turn.Next()
-	}
+	// Leave the game in the AcceptOrders phase so the scenario's orders can be
+	// submitted; the caller advances to ResolveOrders before adjudicating.
+	g.Turn = game.StartingTurn() // Spring, AcceptOrders, Year 1
 
 	return g
 }

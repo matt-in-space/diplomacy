@@ -68,11 +68,11 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 
 	ctx.normalizeOrders()
 	ctx.categorizeOrders()
-	ctx.buildDefaultResolutions()
 	ctx.pruneMisalignedOrders()
 	ctx.buildIntendedEndingPositions()
+	ctx.resolveOrders()
 
-	return Resolution{}, nil
+	return ctx.buildResolution(g.Turn), nil
 }
 
 type resolutionContext struct {
@@ -100,9 +100,16 @@ type resolutionContext struct {
 	effectiveSupportMoveOrders map[game.UnitID]game.SupportMoveOrder
 	effectiveConvoyOrders      map[game.UnitID]game.ConvoyOrder
 
-	// Outcomes
+	// Resolver state (Kruijswijk recursive backtracking).
+	state           map[game.UnitID]resolutionState
+	resolution      map[game.UnitID]bool
+	dependencyStack []game.UnitID
+	movesByTarget   map[gamemap.ProvinceID][]game.UnitID
+	convoysByArmy   map[game.UnitID][]game.ConvoyOrder
+
+	// Outcomes recorded during pruning (misaligned/failed-convoy orders). The
+	// resolver merges these into the final resolution rather than overwriting them.
 	orderOutcomes map[game.UnitID]OrderOutcome
-	unitOutcomes  map[game.UnitID]UnitOutcome
 }
 
 func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
@@ -123,8 +130,9 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		effectiveSupportHoldOrders: make(map[game.UnitID]game.SupportHoldOrder),
 		effectiveSupportMoveOrders: make(map[game.UnitID]game.SupportMoveOrder),
 		effectiveConvoyOrders:      make(map[game.UnitID]game.ConvoyOrder),
+		state:                      make(map[game.UnitID]resolutionState),
+		resolution:                 make(map[game.UnitID]bool),
 		orderOutcomes:              make(map[game.UnitID]OrderOutcome),
-		unitOutcomes:               make(map[game.UnitID]UnitOutcome),
 	}
 }
 
@@ -163,13 +171,6 @@ func (rc *resolutionContext) categorizeOrders() {
 		case game.ConvoyOrder:
 			rc.convoyOrders[order.Unit()] = order
 		}
-	}
-}
-
-func (rc *resolutionContext) buildDefaultResolutions() {
-	for unitID, unit := range rc.units {
-		coast := rc.fleetCoasts[unitID]
-		rc.unitOutcomes[unitID] = createUnitHoldOutcome(unit, coast)
 	}
 }
 
@@ -288,15 +289,5 @@ func createOrderSuccessOutcome(order game.Order) OrderOutcome {
 		Order:   order,
 		Success: true,
 		Reason:  ReasonSuccess,
-	}
-}
-
-func createUnitHoldOutcome(unit game.Unit, coast gamemap.CoastID) UnitOutcome {
-	return UnitOutcome{
-		UnitID: unit.ID,
-		Type:   UnitOutcomeHold,
-		From:   unit.ProvinceID,
-		To:     unit.ProvinceID,
-		Coast:  coast,
 	}
 }
