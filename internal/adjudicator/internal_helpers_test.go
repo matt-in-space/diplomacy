@@ -60,13 +60,6 @@ func prunedContext(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) 
 	return rc
 }
 
-// graphContext builds a context and runs the pipeline through graph construction.
-func graphContext(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) resolutionContext {
-	rc := prunedContext(gm, units, orders...)
-	rc.buildDependencyGraph()
-	return rc
-}
-
 func loadTestMap(t *testing.T) *gamemap.GameMap {
 	t.Helper()
 

@@ -69,9 +69,8 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	ctx.normalizeOrders()
 	ctx.categorizeOrders()
 	ctx.buildDefaultResolutions()
-	ctx.buildIntendedEndingPositions()
 	ctx.pruneMisalignedOrders()
-	ctx.buildDependencyGraph()
+	ctx.buildIntendedEndingPositions()
 
 	return Resolution{}, nil
 }
@@ -93,17 +92,13 @@ type resolutionContext struct {
 	supportMoveOrders map[game.UnitID]game.SupportMoveOrder
 	convoyOrders      map[game.UnitID]game.ConvoyOrder
 
-	// Effective orders: the orders that survive pruning and feed the dependency
-	// graph. Together these partition every unit into exactly one behavior.
+	// Effective orders: the orders that survive pruning. Together these partition
+	// every unit into exactly one behavior for the resolver.
 	effectiveHoldOrders        map[game.UnitID]game.HoldOrder
 	effectiveMoveOrders        map[game.UnitID]game.MoveOrder
 	effectiveSupportHoldOrders map[game.UnitID]game.SupportHoldOrder
 	effectiveSupportMoveOrders map[game.UnitID]game.SupportMoveOrder
 	effectiveConvoyOrders      map[game.UnitID]game.ConvoyOrder
-
-	// Graph data
-	dependents map[game.UnitID][]game.UnitID
-	indegree   map[game.UnitID]int
 
 	// Outcomes
 	orderOutcomes map[game.UnitID]OrderOutcome
@@ -128,8 +123,6 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		effectiveSupportHoldOrders: make(map[game.UnitID]game.SupportHoldOrder),
 		effectiveSupportMoveOrders: make(map[game.UnitID]game.SupportMoveOrder),
 		effectiveConvoyOrders:      make(map[game.UnitID]game.ConvoyOrder),
-		dependents:                 make(map[game.UnitID][]game.UnitID),
-		indegree:                   make(map[game.UnitID]int),
 		orderOutcomes:              make(map[game.UnitID]OrderOutcome),
 		unitOutcomes:               make(map[game.UnitID]UnitOutcome),
 	}
@@ -143,17 +136,16 @@ func (rc *resolutionContext) normalizeOrders() {
 	}
 }
 
+// buildIntendedEndingPositions maps each province to the units intending to end
+// there. It runs after pruning and reads the effective orders, so a demoted
+// convoyed move counts toward its origin (where it now holds), not its target.
 func (rc *resolutionContext) buildIntendedEndingPositions() {
-	for _, order := range rc.allOrders {
-		if moveOrder, ok := order.(game.MoveOrder); ok {
-			rc.intendedPositions[moveOrder.Target] = append(rc.intendedPositions[moveOrder.Target], order.Unit())
-		} else {
-			unit, ok := rc.units[order.Unit()]
-			if !ok {
-				panic("Invalid UnitID")
-			}
-			rc.intendedPositions[unit.ProvinceID] = append(rc.intendedPositions[unit.ProvinceID], order.Unit())
+	for id, unit := range rc.units {
+		if move, ok := rc.effectiveMoveOrders[id]; ok {
+			rc.intendedPositions[move.Target] = append(rc.intendedPositions[move.Target], id)
+			continue
 		}
+		rc.intendedPositions[unit.ProvinceID] = append(rc.intendedPositions[unit.ProvinceID], id)
 	}
 }
 
@@ -253,70 +245,8 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 	}
 }
 
-// buildDependencyGraph populates the dependents and indegree maps that drive the
-// topological resolution. An edge U -> V means "U influences V" and is recorded
-// as dependents[U] += V and indegree[V]++. Only dependencies that gate another
-// order's validity are edges here; province conflicts (move vs. move or move vs.
-// hold) are settled during graph traversal, not encoded as edges.
-func (rc *resolutionContext) buildDependencyGraph() {
-	// Every unit is a node and starts with no dependencies.
-	for id := range rc.units {
-		rc.indegree[id] = 0
-		rc.dependents[id] = nil
-	}
-
-	// A supported action influences the support order that depends on it (M -> S).
-	for id, support := range rc.effectiveSupportHoldOrders {
-		rc.addDependency(support.SupportedUnit, id)
-	}
-	for id, support := range rc.effectiveSupportMoveOrders {
-		rc.addDependency(support.SupportedUnit, id)
-	}
-
-	// A convoying fleet enables the convoyed move (C -> M).
-	for id, convoy := range rc.effectiveConvoyOrders {
-		rc.addDependency(id, convoy.ConvoyedUnit)
-	}
-
-	// A foreign move attacks whichever unit currently occupies its target. If
-	// that unit is giving support or convoying, the attack may cut it, so the
-	// move must resolve first (A -> S, A -> C). Ordinary move/hold conflicts are
-	// resolved during traversal, not encoded as edges.
-	for attacker, move := range rc.effectiveMoveOrders {
-		occupant, ok := rc.currentPositions[move.Target]
-		if !ok || occupant == attacker {
-			continue
-		}
-		if rc.units[occupant].NationID == rc.units[attacker].NationID {
-			continue
-		}
-		if rc.providesSupportOrConvoy(occupant) {
-			rc.addDependency(attacker, occupant)
-		}
-	}
-}
-
-// providesSupportOrConvoy reports whether the unit's effective order is a support
-// or convoy, i.e. an order whose validity an attacker could cut.
-func (rc *resolutionContext) providesSupportOrConvoy(id game.UnitID) bool {
-	if _, ok := rc.effectiveSupportHoldOrders[id]; ok {
-		return true
-	}
-	if _, ok := rc.effectiveSupportMoveOrders[id]; ok {
-		return true
-	}
-	_, ok := rc.effectiveConvoyOrders[id]
-	return ok
-}
-
-// addDependency records a directed edge from -> to in the dependency graph.
-func (rc *resolutionContext) addDependency(from, to game.UnitID) {
-	rc.dependents[from] = append(rc.dependents[from], to)
-	rc.indegree[to]++
-}
-
 // demoteToHold records a failed outcome for an order and makes the unit hold in
-// place, so it still participates in the dependency graph as a holder.
+// place, so it still participates in resolution as a holder.
 func (rc *resolutionContext) demoteToHold(order game.Order, reason ReasonCode) {
 	id := order.Unit()
 	rc.effectiveHoldOrders[id] = game.NewHoldOrder(id, order.Nation())
