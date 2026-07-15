@@ -129,25 +129,6 @@ func TestResolve_Strength(t *testing.T) {
 				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),
 			},
 		},
-		{
-			name: "single attacker stronger than defender dislodges defender",
-			units: []unitSpec{
-				army("fra-a-par", "fra", "par"), // Attacker
-				army("eng-a-gas", "eng", "gas"), // Defender
-			},
-			orders: []game.Order{
-				game.NewMoveOrder("fra-a-par", "fra", "gas", ""), // Attacker (strength 1)
-				game.NewHoldOrder("eng-a-gas", "eng"),            // Defender (strength 1)
-			},
-			expected: []expectedOutcome{
-				// This test case needs adjustment. With base strength 1, a single attacker against a single defender will result in a bounce, not dislodgement.
-				// To test dislodgement, we need support or already higher strengths.
-				// For now, let's ensure the bounce logic from above is correctly tested.
-				// This will be revised when support and stronger attacks are tested.
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
-			},
-		},
 	})
 }
 
@@ -195,8 +176,8 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "spa", ""), // Support for SPA, but unit moves to GAS
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Unit moves successfully
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonWeakAttack),    // Support order fails because it didn't apply
+				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess),     // Unit moves successfully
+				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonMisalignedSupport), // Support fails: supported unit moved elsewhere
 			},
 		},
 		{
@@ -210,44 +191,52 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""),
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", true, adjudicator.ReasonSuccess),     // Unit holds
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonWeakAttack), // Support order fails because it didn't apply
+				holdOutcome("fra-a-par", "par", true, adjudicator.ReasonSuccess),            // Unit holds
+				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonMisalignedSupport), // Support fails: supported unit did not move
 			},
 		},
 		{
 			name: "support is cut by a foreign attack",
 			units: []unitSpec{
-				army("fra-a-par", "fra", "par"),         // Supported unit
+				army("fra-a-par", "fra", "par"),         // Supported attacker
 				army("fra-a-bre", "fra", "bre"),         // Supporting unit
-				fleet("eng-f-gas", "eng", "gas", "gas"), // Attacker
+				army("eng-a-gas", "eng", "gas"),         // Defender
+				fleet("eng-f-eng", "eng", "eng", "eng"), // Cutter (attacks the supporter from the channel)
 			},
 			orders: []game.Order{
-				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported unit moves to 'gas'
+				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported attack on 'gas'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support move to 'gas'
-				game.NewMoveOrder("eng-f-gas", "eng", "bre", "bre"),                  // Foreign attacker moves to 'bre' (supporter's province)
+				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender holds
+				game.NewMoveOrder("eng-f-eng", "eng", "bre", ""),                     // Cuts support: attacks 'bre' from 'eng' (not the support target)
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonSupportCut),    // Supported unit fails due to support cut
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonSupportCut),    // Supporting unit fails itself because its support is cut, and its order fails too? Or does it just hold?
-				moveOutcome("eng-f-gas", "gas", "bre", true, adjudicator.ReasonSuccess), // Attacker successfully moves
+				// Support is cut, so the attack drops to strength 1 and bounces off the strength-1 defender.
+				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces
+				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonSupportCut), // Support cut
+				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
+				holdOutcome("eng-f-eng", "eng", false, adjudicator.ReasonWeakAttack), // Cutter bounces off the supporter
 			},
 		},
 		{
 			name: "support is NOT cut by own-nation attack",
 			units: []unitSpec{
-				army("fra-a-par", "fra", "par"), // Supported unit
-				army("fra-a-bre", "fra", "bre"), // Supporting unit
-				army("fra-a-gas", "fra", "gas"), // Attacker (same nation)
+				army("fra-a-par", "fra", "par"),         // Supported attacker
+				army("fra-a-bre", "fra", "bre"),         // Supporting unit
+				army("eng-a-gas", "eng", "gas"),         // Defender
+				fleet("fra-f-eng", "fra", "eng", "eng"), // Own-nation unit attacking its own supporter
 			},
 			orders: []game.Order{
-				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported unit moves to 'gas'
+				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported attack on 'gas'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support move to 'gas'
-				game.NewMoveOrder("fra-a-gas", "fra", "bre", ""),                     // Own-nation attacker moves to 'bre' (supporter's province)
+				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender holds
+				game.NewMoveOrder("fra-f-eng", "fra", "bre", ""),                     // Own-nation attack on 'bre' must NOT cut support
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Supported unit succeeds (support not cut)
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Supporting unit's order succeeds as support is valid.
-				moveOutcome("fra-a-gas", "gas", "bre", true, adjudicator.ReasonSuccess), // Attacker from same nation moves.
+				// Own-nation attacks never cut support, so the attack keeps strength 2 and dislodges the defender.
+				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Attacker moves in
+				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Support holds (not cut)
+				retreatOutcome("eng-a-gas", "gas"),                                      // Defender dislodged
+				holdOutcome("fra-f-eng", "eng", false, adjudicator.ReasonWeakAttack),    // Own unit bounces off the supporter
 			},
 		},
 		{
@@ -263,19 +252,13 @@ func TestResolve_Support(t *testing.T) {
 				game.NewMoveOrder("eng-a-gas", "eng", "bre", ""),                     // Foreign attacker moves to 'bre' (supporter's province)
 			},
 			expected: []expectedOutcome{
-				// This is similar to the 'support is cut' test. The crucial point is the *origin* of the attack on the supporter.
-				// The rule is: "Support is not cut by an attack from the province into which the support is being given."
-				// Here, support is for 'gas'. Attacker is in 'bre', moves to 'bre'. This does NOT originate from 'gas'. Support WILL be cut.
-				// The test name seems to imply the opposite. Let's re-read the rule:
-				// "Support is not cut by an attack from the province into which the support is being given."
-				// This implies if A supports B->X, and C attacks A, if C originates FROM X, support is NOT cut.
-				// In our scenario: A=fra-a-bre (supporter), B=fra-a-par (supported), X=gas (target province).
-				// C=eng-a-gas attacks A. C's origin is 'gas'.
-				// So, C's attack IS from province X ('gas'). Therefore, A's support for B->X should NOT be cut.
-				// Thus, both support and move should succeed.
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Supported unit succeeds
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Supporting unit's support is valid, it acts as a hold itself. Its order succeeds.
-				moveOutcome("eng-a-gas", "gas", "bre", true, adjudicator.ReasonSuccess), // Foreign attacker moves.
+				// The attacker on the supporter comes from 'gas', the province the support is
+				// directed into, so the support is NOT cut (a unit cannot cut the support aimed
+				// at itself). The attack keeps strength 2: the attacker on 'gas' bounces off the
+				// holding supporter in 'bre' and is then dislodged by the incoming supported unit.
+				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Supported unit moves in
+				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Support valid (not cut)
+				retreatOutcome("eng-a-gas", "gas"),                                      // Attacker bounces, then is dislodged
 			},
 		},
 	})
@@ -284,21 +267,6 @@ func TestResolve_Support(t *testing.T) {
 // TestResolve_Dislodgement tests scenarios involving dislodged units.
 func TestResolve_Dislodgement(t *testing.T) {
 	runScenarios(t, []scenario{
-		{
-			name: "single attacker stronger than defender dislodges defender",
-			units: []unitSpec{
-				army("fra-a-par", "fra", "par"), // Attacker (strength 1)
-				army("eng-a-gas", "eng", "gas"), // Defender (strength 1)
-			},
-			orders: []game.Order{
-				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
-				game.NewHoldOrder("eng-a-gas", "eng"),
-			},
-			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces (1 vs 1)
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
-			},
-		},
 		{
 			name: "single supported attacker dislodges defender",
 			units: []unitSpec{
