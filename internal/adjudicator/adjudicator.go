@@ -71,6 +71,7 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	ctx.buildDefaultResolutions()
 	ctx.buildIntendedEndingPositions()
 	ctx.pruneMisalignedOrders()
+	ctx.buildDependencyGraph()
 
 	return Resolution{}, nil
 }
@@ -79,6 +80,7 @@ type resolutionContext struct {
 	gm                *gamemap.GameMap
 	units             map[game.UnitID]game.Unit
 	fleetCoasts       map[game.UnitID]gamemap.CoastID
+	currentPositions  map[gamemap.ProvinceID]game.UnitID
 	intendedPositions map[gamemap.ProvinceID][]game.UnitID
 
 	// allOrders holds every unit's order (submitted, or a defaulted hold).
@@ -113,6 +115,7 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		gm:                         gm,
 		units:                      maps.Clone(g.Units),
 		fleetCoasts:                maps.Clone(g.FleetCoasts),
+		currentPositions:           maps.Clone(g.Positions),
 		intendedPositions:          make(map[gamemap.ProvinceID][]game.UnitID),
 		allOrders:                  maps.Clone(g.Orders),
 		moveOrders:                 make(map[game.UnitID]game.MoveOrder),
@@ -125,6 +128,8 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		effectiveSupportHoldOrders: make(map[game.UnitID]game.SupportHoldOrder),
 		effectiveSupportMoveOrders: make(map[game.UnitID]game.SupportMoveOrder),
 		effectiveConvoyOrders:      make(map[game.UnitID]game.ConvoyOrder),
+		dependents:                 make(map[game.UnitID][]game.UnitID),
+		indegree:                   make(map[game.UnitID]int),
 		orderOutcomes:              make(map[game.UnitID]OrderOutcome),
 		unitOutcomes:               make(map[game.UnitID]UnitOutcome),
 	}
@@ -248,6 +253,68 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 	}
 }
 
+// buildDependencyGraph populates the dependents and indegree maps that drive the
+// topological resolution. An edge U -> V means "U influences V" and is recorded
+// as dependents[U] += V and indegree[V]++. Only dependencies that gate another
+// order's validity are edges here; province conflicts (move vs. move or move vs.
+// hold) are settled during graph traversal, not encoded as edges.
+func (rc *resolutionContext) buildDependencyGraph() {
+	// Every unit is a node and starts with no dependencies.
+	for id := range rc.units {
+		rc.indegree[id] = 0
+		rc.dependents[id] = nil
+	}
+
+	// A supported action influences the support order that depends on it (M -> S).
+	for id, support := range rc.effectiveSupportHoldOrders {
+		rc.addDependency(support.SupportedUnit, id)
+	}
+	for id, support := range rc.effectiveSupportMoveOrders {
+		rc.addDependency(support.SupportedUnit, id)
+	}
+
+	// A convoying fleet enables the convoyed move (C -> M).
+	for id, convoy := range rc.effectiveConvoyOrders {
+		rc.addDependency(id, convoy.ConvoyedUnit)
+	}
+
+	// A foreign move attacks whichever unit currently occupies its target. If
+	// that unit is giving support or convoying, the attack may cut it, so the
+	// move must resolve first (A -> S, A -> C). Ordinary move/hold conflicts are
+	// resolved during traversal, not encoded as edges.
+	for attacker, move := range rc.effectiveMoveOrders {
+		occupant, ok := rc.currentPositions[move.Target]
+		if !ok || occupant == attacker {
+			continue
+		}
+		if rc.units[occupant].NationID == rc.units[attacker].NationID {
+			continue
+		}
+		if rc.providesSupportOrConvoy(occupant) {
+			rc.addDependency(attacker, occupant)
+		}
+	}
+}
+
+// providesSupportOrConvoy reports whether the unit's effective order is a support
+// or convoy, i.e. an order whose validity an attacker could cut.
+func (rc *resolutionContext) providesSupportOrConvoy(id game.UnitID) bool {
+	if _, ok := rc.effectiveSupportHoldOrders[id]; ok {
+		return true
+	}
+	if _, ok := rc.effectiveSupportMoveOrders[id]; ok {
+		return true
+	}
+	_, ok := rc.effectiveConvoyOrders[id]
+	return ok
+}
+
+// addDependency records a directed edge from -> to in the dependency graph.
+func (rc *resolutionContext) addDependency(from, to game.UnitID) {
+	rc.dependents[from] = append(rc.dependents[from], to)
+	rc.indegree[to]++
+}
+
 // demoteToHold records a failed outcome for an order and makes the unit hold in
 // place, so it still participates in the dependency graph as a holder.
 func (rc *resolutionContext) demoteToHold(order game.Order, reason ReasonCode) {
@@ -270,40 +337,12 @@ func (rc *resolutionContext) convoyPathExists(move game.MoveOrder, carriers []ga
 		return false
 	}
 
-	fleetCoasts := make(map[gamemap.CoastID]bool, len(carriers))
+	via := make([]gamemap.CoastID, 0, len(carriers))
 	for _, carrier := range carriers {
-		fleetCoasts[rc.fleetCoasts[carrier.UnitID]] = true
+		via = append(via, rc.fleetCoasts[carrier.UnitID])
 	}
 
-	toCoasts := rc.gm.CoastsFor(move.Target)
-	visited := make(map[gamemap.CoastID]bool)
-	var queue []gamemap.CoastID
-
-	enqueueAdjacent := func(from gamemap.CoastID) {
-		for _, neighbor := range rc.gm.FleetNeighbors(from) {
-			if fleetCoasts[neighbor] && !visited[neighbor] {
-				visited[neighbor] = true
-				queue = append(queue, neighbor)
-			}
-		}
-	}
-
-	for _, coast := range rc.gm.CoastsFor(unit.ProvinceID) {
-		enqueueAdjacent(coast)
-	}
-
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-		for _, toCoast := range toCoasts {
-			if rc.gm.FleetAdjacent(current, toCoast) {
-				return true
-			}
-		}
-		enqueueAdjacent(current)
-	}
-
-	return false
+	return rc.gm.ConvoyPathExists(unit.ProvinceID, move.Target, via)
 }
 
 func createOrderFailOutcome(order game.Order, reason ReasonCode) OrderOutcome {

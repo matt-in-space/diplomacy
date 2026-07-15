@@ -123,3 +123,50 @@ func (g *GameMap) CanArmyMove(from ProvinceID, to ProvinceID) bool {
 func (g *GameMap) CanFleetMove(from CoastID, to CoastID) bool {
 	return g.FleetAdjacent(from, to)
 }
+
+// ConvoyPathExists reports whether an army can be convoyed from one coastal
+// province to another using only the water coasts in via. It performs a
+// breadth-first search from the origin's coasts, hopping between adjacent water
+// coasts in via, and succeeds when any reachable water coast is adjacent to a
+// coast of the destination. An empty via yields false, since a convoy requires
+// at least one carrying fleet.
+func (g *GameMap) ConvoyPathExists(from ProvinceID, to ProvinceID, via []CoastID) bool {
+	if len(via) == 0 {
+		return false
+	}
+
+	available := make(map[CoastID]bool, len(via))
+	for _, coast := range via {
+		available[coast] = true
+	}
+
+	toCoasts := g.CoastsFor(to)
+	visited := make(map[CoastID]bool)
+	var queue []CoastID
+
+	enqueueAdjacent := func(coast CoastID) {
+		for _, neighbor := range g.FleetNeighbors(coast) {
+			if available[neighbor] && !visited[neighbor] {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+
+	for _, coast := range g.CoastsFor(from) {
+		enqueueAdjacent(coast)
+	}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, toCoast := range toCoasts {
+			if g.FleetAdjacent(current, toCoast) {
+				return true
+			}
+		}
+		enqueueAdjacent(current)
+	}
+
+	return false
+}

@@ -157,6 +157,38 @@ func TestGameMap_CanMove(t *testing.T) {
 	}
 }
 
+func TestGameMap_ConvoyPathExists(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+
+	tests := []struct {
+		name string
+		from gamemap.ProvinceID
+		to   gamemap.ProvinceID
+		via  []gamemap.CoastID
+		want bool
+	}{
+		{name: "single fleet bridge", from: "bre", to: "lon", via: []gamemap.CoastID{"eng"}, want: true},
+		{name: "single fleet bridge via ocean", from: "bre", to: "por", via: []gamemap.CoastID{"mao"}, want: true},
+		{name: "multi-hop chain", from: "lon", to: "por", via: []gamemap.CoastID{"eng", "mao"}, want: true},
+		{name: "destination with multiple coasts", from: "bre", to: "spa", via: []gamemap.CoastID{"mao"}, want: true},
+		{name: "origin with multiple coasts", from: "spa", to: "por", via: []gamemap.CoastID{"mao"}, want: true},
+		{name: "irrelevant water present", from: "bre", to: "lon", via: []gamemap.CoastID{"eng", "mao"}, want: true},
+		{name: "empty via", from: "bre", to: "lon", via: nil, want: false},
+		{name: "none adjacent to origin", from: "lon", to: "por", via: []gamemap.CoastID{"mao"}, want: false},
+		{name: "none adjacent to destination", from: "bre", to: "lon", via: []gamemap.CoastID{"mao"}, want: false},
+		{name: "incomplete chain", from: "lon", to: "por", via: []gamemap.CoastID{"eng"}, want: false},
+		{name: "disconnected water", from: "gas", to: "por", via: []gamemap.CoastID{"eng"}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := gm.ConvoyPathExists(tt.from, tt.to, tt.via); got != tt.want {
+				t.Fatalf("ConvoyPathExists(%q, %q, %v) = %v, want %v", tt.from, tt.to, tt.via, got, tt.want)
+			}
+		})
+	}
+}
+
 func loadWesternEuropeMap(t *testing.T) *gamemap.GameMap {
 	t.Helper()
 
