@@ -17,7 +17,7 @@ diplomacy/
 ├── cmd/
 │   └── server/
 │       └── main.go          # composition root: wires all layers, starts HTTP server + worker
-├── internal/
+├── core/
 │   ├── game/                # pure domain — zero infrastructure dependencies
 │   │   ├── game.go          # Game struct, state machine, PutOrder, Advance
 │   │   ├── order.go         # Order interface + concrete types (Move, Hold, Support, Convoy)
@@ -56,7 +56,7 @@ store (implements interfaces defined in commands)
 
 ## Core Systems
 
-### 1. Game Domain (`internal/game`)
+### 1. Game Domain (`core/game`)
 
 The `Game` struct is the aggregate root. It holds all authoritative game state and exposes methods that delegate to isolated domain packages. It has no knowledge of HTTP, Postgres, or job queues.
 
@@ -76,7 +76,7 @@ The `Game` struct is the aggregate root. It holds all authoritative game state a
 
 ---
 
-### 2. Map Graph (`internal/gamemap`)
+### 2. Map Graph (`core/gamemap`)
 
 The map is not a generic graph struct with vertex/edge objects — it is an adjacency list backed by maps. The only queries Diplomacy requires are "is X adjacent to Y" and "what are the neighbors of X", both O(1) with this approach. No pathfinding or traversal abstraction is needed.
 
@@ -166,7 +166,7 @@ Convoy route validation (does a chain of fleets connect two coastal provinces?) 
 
 ---
 
-### 3. Order Types (`internal/game/order.go`)
+### 3. Order Types (`core/game/order.go`)
 
 Orders use an interface with concrete types. This makes the adjudicator's type switches explicit and exhaustive, and keeps each order's fields minimal and typed.
 
@@ -204,7 +204,7 @@ Serialization to/from JSON for Postgres storage is handled at the `store` layer,
 
 ---
 
-### 4. Adjudicator (`internal/game/adjudicator`)
+### 4. Adjudicator (`core/game/adjudicator`)
 
 A pure, stateless function. Takes a snapshot of game state and a complete order set, returns a resolution result. Has no side effects.
 
@@ -235,7 +235,7 @@ The adjudicator is the primary target for DATC test cases. Because it is a pure 
 
 ---
 
-### 5. State Machine (`internal/game/game.go`)
+### 5. State Machine (`core/game/game.go`)
 
 Phases as an explicit enum. `game.Advance()` drives transitions.
 
@@ -257,7 +257,7 @@ Lobby
 
 ---
 
-### 6. Application Service Layer (`internal/commands`)
+### 6. Application Service Layer (`core/commands`)
 
 Command handlers sit between the HTTP/worker layer and the domain. They accept infrastructure interfaces (not concrete types) so they remain independently testable.
 
@@ -284,7 +284,7 @@ The `Game` struct accumulates domain events (e.g. `PhaseAdvanced`, `UnitDislodge
 
 ---
 
-### 7. Background Worker & Cron (`internal/worker`)
+### 7. Background Worker & Cron (`core/worker`)
 
 Two triggers cause a game to advance:
 1. **All players lock orders** — controller enqueues `AdvanceGameJob` after the last lock

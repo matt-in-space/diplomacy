@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {

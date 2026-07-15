@@ -15,7 +15,7 @@ Domain-specific test helpers should live near the domain package they support. G
 Recommended structure:
 
 ```
-internal/
+core/
 └── game/
     ├── gamemap/
     │   ├── gamemap.go
@@ -25,9 +25,9 @@ internal/
     └── game.go
 ```
 
-Use `internal/game/gamemap/maptest` for helpers that build `gamemap.GameMap` values.
+Use `core/game/gamemap/maptest` for helpers that build `gamemap.GameMap` values.
 
-Avoid starting with a broad `internal/testutil` package. It can easily become a dumping ground. Use top-level test utilities only for truly generic helpers such as fake clocks, fake repositories, ID generators, or assertion helpers.
+Avoid starting with a broad `core/testutil` package. It can easily become a dumping ground. Use top-level test utilities only for truly generic helpers such as fake clocks, fake repositories, ID generators, or assertion helpers.
 
 Rule of thumb:
 
@@ -41,14 +41,14 @@ Rule of thumb:
 The shared map builder should be in a normal Go file, not a `_test.go` file:
 
 ```
-internal/game/gamemap/maptest/maptest.go
+core/game/gamemap/maptest/maptest.go
 ```
 
 This lets tests in multiple packages import it, such as:
 
-- `internal/game/gamemap`
-- `internal/game/adjudicator`
-- `internal/game`
+- `core/game/gamemap`
+- `core/game/adjudicator`
+- `core/game`
 
 A package made only of `_test.go` files is not reusable as a normal imported package by other package tests in the way needed here.
 
@@ -57,7 +57,7 @@ This does **not** mean `maptest` becomes part of the production binary. It is on
 For helpers used only inside one package's own tests, prefer a local `_test.go` helper file instead:
 
 ```
-internal/game/gamemap/
+core/game/gamemap/
 ├── gamemap.go
 ├── gamemap_test.go
 └── helpers_test.go
@@ -89,7 +89,7 @@ Example package:
 ```go
 package maptest
 
-import "diplomacy/internal/game/gamemap"
+import "diplomacy/core/game/gamemap"
 
 type Builder struct {
     m *gamemap.GameMap

@@ -1,8 +1,8 @@
 package adjudicator
 
 import (
-	"github.com/matt-in-space/diplomacy/internal/game"
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // buildResolution turns the resolved order states into the final Resolution,

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // testUnit describes a unit to place on the board for an internal stage test.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // A MoveOrder moves a unit from one location to another. If the target province is occupied by a

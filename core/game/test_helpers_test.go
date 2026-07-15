@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 func assertSubmitOrderErrorContains(t *testing.T, g *game.Game, order game.Order, gm *gamemap.GameMap, want string) {

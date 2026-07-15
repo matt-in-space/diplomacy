@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 type GameID string

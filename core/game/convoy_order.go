@@ -3,7 +3,7 @@ package game
 import (
 	"fmt"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // A ConvoyOrder orders a fleet in a water province to convoy an army from one coastal province to another.

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 func TestGameMap_Province(t *testing.T) {

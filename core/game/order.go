@@ -1,6 +1,6 @@
 package game
 
-import "github.com/matt-in-space/diplomacy/internal/gamemap"
+import "github.com/matt-in-space/diplomacy/core/gamemap"
 
 type Order interface {
 	Unit() UnitID

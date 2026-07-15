@@ -3,8 +3,8 @@ package adjudicator
 import (
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // resolvedOutcomes runs the full pipeline and returns the final outcomes.

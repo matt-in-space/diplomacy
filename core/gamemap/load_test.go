@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 func TestLoad_CreatesHydratedGameMap(t *testing.T) {

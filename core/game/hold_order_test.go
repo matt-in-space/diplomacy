@@ -3,7 +3,7 @@ package game_test
 import (
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
+	"github.com/matt-in-space/diplomacy/core/game"
 )
 
 func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // Resolution represents the outcome of a turn's order adjudication.

@@ -3,7 +3,7 @@ package game
 import (
 	"fmt"
 
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // A SupportHoldOrder supports another unit holding its current province.

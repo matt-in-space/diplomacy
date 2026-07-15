@@ -3,7 +3,7 @@ package adjudicator
 import (
 	"testing"
 
-	"github.com/matt-in-space/diplomacy/internal/game"
+	"github.com/matt-in-space/diplomacy/core/game"
 )
 
 func TestPruneMisalignedOrders_HoldsAndMoves(t *testing.T) {

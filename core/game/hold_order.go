@@ -1,7 +1,7 @@
 package game
 
 import (
-	"github.com/matt-in-space/diplomacy/internal/gamemap"
+	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
 // A HoldOrder holds a unit in place, preventing it from moving.
