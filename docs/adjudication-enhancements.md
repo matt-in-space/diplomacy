@@ -5,6 +5,14 @@ core resolver (see `adjudication-resolver.md`) can stay focused.
 
 ## Deferred features
 
+- **Convoy paradox resolution (DATC 6.F).** The resolver handles convoy movement
+  and convoy disruption by dislodgement, but not paradoxical convoys (e.g.
+  Pandin/Szykman), where a convoyed army's attack would cut the support that
+  determines whether its own convoying fleet survives. The convoyed army is not a
+  node in the detected dependency cycle (support-cut recurses through the convoy
+  path rather than the army's resolution), so the Szykman backup rule cannot
+  target it. Fixing this needs an explicit "convoy delivers" proposition that the
+  backtracker can flip. See the skipped `TestResolve_ConvoyParadox`.
 - **Retreat-destination computation.** v1 marks dislodged units with a `retreat`
   outcome and `To=""`. Computing the set of legal retreat provinces (excluding the
   attacker's origin, occupied provinces, and standoff provinces) belongs to the

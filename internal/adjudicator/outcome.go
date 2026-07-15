@@ -37,6 +37,11 @@ func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (UnitOut
 		if rc.isDislodged(id, unit) {
 			return rc.retreatOutcome(id, unit), createOrderFailOutcome(order, ReasonDislodged)
 		}
+		// A convoyed move whose path is no longer intact failed because its convoy
+		// broke, not because it bounced.
+		if move.ViaConvoy && !rc.path(id, move) {
+			return rc.holdOutcome(id, unit), createOrderFailOutcome(order, ReasonConvoyFailure)
+		}
 		return rc.holdOutcome(id, unit), createOrderFailOutcome(order, ReasonWeakAttack)
 	}
 
