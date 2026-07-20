@@ -18,25 +18,8 @@ type Resolution struct {
 // Outcome describes the result for a single unit after adjudication.
 type Outcome struct {
 	UnitID game.UnitID
-	Unit   UnitOutcome
+	Unit   game.MovementResult
 	Order  OrderOutcome
-}
-
-type UnitOutcomeType string
-
-const (
-	UnitOutcomeMove    UnitOutcomeType = "move"
-	UnitOutcomeHold    UnitOutcomeType = "hold"
-	UnitOutcomeRetreat UnitOutcomeType = "retreat"
-)
-
-// UnitOutcome details the unit's final position and type.
-type UnitOutcome struct {
-	UnitID game.UnitID
-	Type   UnitOutcomeType
-	From   gamemap.ProvinceID
-	To     gamemap.ProvinceID
-	Coast  gamemap.CoastID
 }
 
 type ReasonCode string

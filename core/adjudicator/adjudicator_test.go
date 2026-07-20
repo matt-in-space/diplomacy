@@ -23,7 +23,7 @@ type unitSpec struct {
 type expectedOutcome struct {
 	unitID game.UnitID
 	// Unit outcome details
-	unitType adjudicator.UnitOutcomeType
+	unitType game.MovementResultType
 	from     gamemap.ProvinceID
 	to       gamemap.ProvinceID
 	// Order outcome details
@@ -481,7 +481,7 @@ func assertResolution(t *testing.T, got adjudicator.Resolution, expected []expec
 func moveOutcome(unitID game.UnitID, from, to gamemap.ProvinceID, success bool, reason adjudicator.ReasonCode) expectedOutcome {
 	return expectedOutcome{
 		unitID:       unitID,
-		unitType:     adjudicator.UnitOutcomeMove,
+		unitType:     game.MovementResultMove,
 		from:         from,
 		to:           to,
 		orderSuccess: success,
@@ -493,7 +493,7 @@ func moveOutcome(unitID game.UnitID, from, to gamemap.ProvinceID, success bool, 
 func holdOutcome(unitID game.UnitID, province gamemap.ProvinceID, success bool, reason adjudicator.ReasonCode) expectedOutcome {
 	return expectedOutcome{
 		unitID:       unitID,
-		unitType:     adjudicator.UnitOutcomeHold,
+		unitType:     game.MovementResultHold,
 		from:         province,
 		to:           province,
 		orderSuccess: success,
@@ -506,7 +506,7 @@ func retreatOutcome(unitID game.UnitID, province gamemap.ProvinceID) expectedOut
 	// Retreat outcome implies the original order (move/hold) failed.
 	return expectedOutcome{
 		unitID:       unitID,
-		unitType:     adjudicator.UnitOutcomeRetreat,
+		unitType:     game.MovementResultRetreat,
 		from:         province,                    // Province where dislodgement occurred.
 		to:           "",                          // Retreat destination is determined in the next phase.
 		orderSuccess: false,                       // The original order failed.
