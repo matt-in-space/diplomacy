@@ -1,316 +1,397 @@
-# Diplomacy — Architecture
+# Application Architecture
 
-## Overview
+## Purpose
 
-This document covers the technical architecture of the Diplomacy web application built in Go. It is a living document and will evolve as decisions are made.
+This document describes the intended structure of the Diplomacy application, the responsibilities of each layer, and how commands interact with the game workflow.
 
-The application has two major surfaces:
-- **Game Engine** — pure domain logic: state machine, map graph, order validation, adjudication
-- **Web Application** — HTTP API, persistence, background processing, notifications
+The central design rule is that the game engine owns game rules, while the application layer owns use-case orchestration. HTTP, databases, queues, and notification providers remain outside both.
 
----
+## Layers
 
-## Project Structure
+### Domain
 
-```
+The domain is the game engine under `core/`:
+
+- `core/game` owns the `Game` aggregate, units, orders, turns, phases, and state mutations.
+- `core/gamemap` owns map data and map-rule queries.
+- `core/adjudicator` resolves submitted orders without performing persistence or external side effects.
+
+Domain packages may depend on other domain packages, but they must not know about HTTP, users outside their game assignments, databases, queues, or notifications.
+
+The domain is responsible for enforcing rules such as:
+
+- whether an order is legal in the current phase;
+- whether a unit belongs to the order's nation;
+- whether movement is legal on the selected map;
+- how orders resolve;
+- whether a set of unit transforms is complete and valid;
+- how valid transforms change game state;
+- which phase follows the current phase.
+
+### Application
+
+The application layer implements complete use cases. It loads state, authorizes the actor, invokes domain behavior, persists the result, and records follow-up work or events.
+
+Examples include:
+
+- submitting an order;
+- closing an order-submission phase;
+- processing an automatic resolution phase;
+- submitting a retreat;
+- processing retreats;
+- submitting an adjustment;
+- processing adjustments.
+
+The application layer may access user data and infrastructure through interfaces. It should not contain Diplomacy resolution rules or HTTP-specific behavior.
+
+### Web
+
+The web layer adapts HTTP requests to application commands. Its responsibilities are limited to:
+
+- authenticating the request;
+- parsing path, query, and body values;
+- performing basic request-shape validation;
+- constructing an application command;
+- invoking the workflow;
+- translating application errors and results into HTTP responses.
+
+A web handler must not load and mutate a game directly.
+
+### Infrastructure
+
+Infrastructure packages implement interfaces required by the application layer. Expected implementations include:
+
+- a game repository;
+- a game-map repository;
+- user storage;
+- a durable job queue;
+- a transactional outbox;
+- notification delivery;
+- a clock;
+- database transaction management.
+
+### Composition Root
+
+`cmd/server/main.go` constructs concrete infrastructure implementations, injects them into the application workflow, and starts HTTP and worker processes. It is the only location that needs to know about all layers.
+
+## Proposed Project Structure
+
+```text
 diplomacy/
 ├── cmd/
 │   └── server/
-│       └── main.go          # composition root: wires all layers, starts HTTP server + worker
+│       └── main.go
 ├── core/
-│   ├── game/                # pure domain — zero infrastructure dependencies
-│   │   ├── game.go          # Game struct, state machine, PutOrder, Advance
-│   │   ├── order.go         # Order interface + concrete types (Move, Hold, Support, Convoy)
-│   │   └── adjudicator/     # Resolve() — pure function, orders in → resolution out
-│   ├── gamemap/             # province graph, coast adjacency, legal move queries
-│   ├── commands/            # application service layer — orchestrates domain + infrastructure
-│   │   ├── submit_order.go
-│   │   ├── advance_game.go
-│   │   └── ...
-│   ├── store/               # persistence — repository interfaces + Postgres implementations
-│   │   └── game_repo.go
-│   ├── worker/              # background job loop + cron deadline checker
-│   ├── notify/              # email + in-app notification implementations
-│   └── api/                 # HTTP handlers, routing, middleware
-├── docs/
-└── go.mod
+│   ├── adjudicator/
+│   ├── game/
+│   └── gamemap/
+├── application/
+│   └── gameplay/
+│       ├── workflow.go
+│       ├── repositories.go
+│       ├── submit_order.go
+│       ├── advance_game.go
+│       └── events.go
+├── web/
+│   ├── handlers/
+│   ├── middleware/
+│   └── routes.go
+├── infrastructure/
+│   ├── postgres/
+│   ├── jobs/
+│   └── notifications/
+└── docs/
 ```
 
-### Dependency Direction
+The exact package names may evolve. The important constraint is dependency direction:
 
-Outer layers depend on inner. The `game` package never imports `store`, `api`, `notify`, or `worker`.
-
-```
-api / worker
-    ↓
-commands
-    ↓
-game (domain)
-    ↑
-store (implements interfaces defined in commands)
+```text
+web ───────────────┐
+worker ────────────┼──> application ──> core
+                   │         ↑
+infrastructure ────┘         │
+      implements application-owned interfaces
 ```
 
-`cmd/server/main.go` is the only place where all layers are wired together.
+`core` imports neither `application` nor any outer package. `application` may import all domain packages. Infrastructure implements interfaces declared by the application package.
 
----
+## GameWorkflow
 
-## Core Systems
-
-### 1. Game Domain (`core/game`)
-
-The `Game` struct is the aggregate root. It holds all authoritative game state and exposes methods that delegate to isolated domain packages. It has no knowledge of HTTP, Postgres, or job queues.
-
-**State held by `Game`:**
-- Current phase and year
-- Unit positions (province → unit)
-- Supply center ownership
-- Submitted orders (player → order set)
-- Pending retreats (after resolution)
-- Player assignments
-
-**Key methods:**
-- `game.PutOrder(playerID, order) error` — validates and stores an order; rejects illegal orders immediately
-- `game.AllOrdersSubmitted() bool` — used by the command layer to decide whether to enqueue an advance job
-- `game.Advance()` — transitions the state machine to the next phase; calls the adjudicator if in the order resolution phase
-- `game.LockOrders(playerID) error` — marks a player's orders as final
-
----
-
-### 2. Map Graph (`core/gamemap`)
-
-The map is not a generic graph struct with vertex/edge objects — it is an adjacency list backed by maps. The only queries Diplomacy requires are "is X adjacent to Y" and "what are the neighbors of X", both O(1) with this approach. No pathfinding or traversal abstraction is needed.
+`GameWorkflow` is an application service represented by a struct in the `application/gameplay` package. The package groups game-related use cases; the struct holds the dependencies shared by their handlers.
 
 ```go
-type Map struct {
-    Provinces      map[ProvinceID]Province
-    ArmyAdjacency  map[ProvinceID][]ProvinceID
-    FleetAdjacency map[CoastID][]CoastID
+type GameWorkflow struct {
+    games      GameRepository
+    maps       GameMapRepository
+    users      UserRepository
+    jobs       JobQueue
+    events     EventPublisher
+    transaction TransactionManager
 }
 ```
 
-#### Province Types
+The initial implementation does not need every dependency shown above. Dependencies should be added when a use case requires them rather than in anticipation of possible features.
 
-There are three province types: `Inland`, `Water`, and `Coastal`.
+`GameWorkflow` is not a global singleton and does not contain the currently active game. It is safe for one workflow value to process many games. The singular identity of a workflow operation is the game ID plus the state version loaded from persistence.
 
-- **Water provinces** are full provinces (e.g. North Sea, Mediterranean). Fleets occupy and move through them. They never appear in army adjacency. They have a single implicit coast with the same ID as the province.
-- **Inland provinces** appear only in army adjacency. Fleets cannot enter them.
-- **Coastal provinces** appear in both army adjacency (by province ID) and fleet adjacency (by coast ID). Most have a single coast; bicoastal provinces (Spain, Bulgaria, St. Petersburg) have two named coasts.
+There is no need for a separate `GameManager` at first. The workflow already fills that role at the application level. A manager abstraction should only be introduced later if it acquires a distinct responsibility.
 
-#### Coast Model
+### Lifetime and Concurrency
 
-Every fleet-navigable province has at least one coast entry, even if implicit. This makes fleet adjacency uniformly coast-to-coast across all cases:
-
-| Province type | Coasts |
-|---|---|
-| Water | One coast, ID = province ID (e.g. `"nth"`) |
-| Single-coast coastal | One coast, ID = province ID (e.g. `"bre"`) |
-| Bicoastal coastal | Two named coasts (e.g. `"spa-nc"`, `"spa-sc"`) |
-
-The rule "armies cannot enter water" is implicit in the data — water provinces simply have no army adjacency entries.
-
-#### Embedded JSON
-
-Map data is stored as a JSON file embedded into the binary at compile time using Go's `//go:embed` directive. This means no file path dependencies at runtime and no separate config to deploy. Swapping maps (dev subset → full map → custom map) is a data-only change.
+Create one long-lived `GameWorkflow` when the process starts and inject its pointer into HTTP handlers and workers:
 
 ```go
-//go:embed data.json
-var rawMapData []byte
-
-func Load() (*Map, error) {
-    var data mapFileData
-    if err := json.Unmarshal(rawMapData, &data); err != nil {
-        return nil, err
-    }
-    return buildMap(data), nil
-}
+workflow := gameplay.NewGameWorkflow(games, maps, jobs, events)
+handler := web.NewGameHandler(workflow)
 ```
 
-`buildMap()` converts the raw deserialized shape into the runtime struct with its lookup maps, keeping the JSON schema decoupled from the in-memory representation.
+The workflow remains in memory for the life of the process, but it must not retain mutable state for individual games or requests. Its fields are shared dependencies such as repositories and queue clients. Those implementations must be safe for concurrent use.
 
-**JSON structure:**
+Go's HTTP server already handles concurrent requests in separate goroutines. Handlers should call workflow methods directly rather than creating another goroutine for each command. Every method should accept `context.Context` so cancellation and deadlines propagate to repositories and other dependencies.
 
-```json
-{
-  "id": "standard",
-  "name": "Classic Diplomacy",
-  "victory_threshold": 18,
-  "nations": ["England", "France", "Germany", "Italy", "Austria", "Russia", "Turkey"],
-  "provinces": [
-    { "id": "nth", "name": "North Sea",  "type": "water",   "supply_center": false, "home_nation": null,     "coasts": ["nth"] },
-    { "id": "bre", "name": "Brest",      "type": "coastal", "supply_center": true,  "home_nation": "France", "coasts": ["bre"] },
-    { "id": "spa", "name": "Spain",      "type": "coastal", "supply_center": true,  "home_nation": null,     "coasts": ["spa-nc", "spa-sc"] },
-    { "id": "par", "name": "Paris",      "type": "inland",  "supply_center": true,  "home_nation": "France", "coasts": [] }
-  ],
-  "army_adjacency": {
-    "par": ["pic", "bur", "gas", "bre"],
-    "spa": ["por", "gas", "mar"]
-  },
-  "fleet_adjacency": {
-    "nth": ["nwg", "eng", "hel", "ska", "edi", "yor"],
-    "bre": ["eng", "mao", "pic", "gas"],
-    "spa-nc": ["gas", "mao", "por"],
-    "spa-sc": ["wmd", "gol", "por", "mar"]
-  }
-}
-```
+Concurrent operations on the same game are coordinated through persisted versions and transactions, not through mutexes held by the workflow. An in-memory repository used in development or tests may need a mutex to provide the same concurrency guarantees.
 
-Nations, victory threshold, and starting positions are all map-defined, not hardcoded — this supports custom maps (Westeros, Middle Earth, etc.) as alternative datasets with no engine changes.
+Goroutines are appropriate for long-running worker loops and bounded concurrent job processing. Command methods should not start fire-and-forget goroutines for notifications, phase advancement, or other durable work. They should record that work in the transactional outbox so it survives process crashes and can be retried.
 
-**Key queries the map exposes:**
-- `CanMove(unitType, from, to) bool`
-- `LegalMoves(unitType, from) []ProvinceID`
-- `IsCoastal(provinceID) bool`
-- `CostsFor(provinceID) []CoastID`
+## Commands
 
-Convoy route validation (does a chain of fleets connect two coastal provinces?) is a BFS over `FleetAdjacency` — a single function, not a reason to build a general traversal abstraction.
-
----
-
-### 3. Order Types (`core/game/order.go`)
-
-Orders use an interface with concrete types. This makes the adjudicator's type switches explicit and exhaustive, and keeps each order's fields minimal and typed.
+A command is a plain data structure describing an application request. It should not contain repositories, perform work itself, or require an `Execute` interface.
 
 ```go
-type Order interface {
-    UnitID() string
-    Validate(state *GameState, m *gamemap.Map) error
-}
-
-type HoldOrder struct {
-    Unit string
-}
-
-type MoveOrder struct {
-    Unit string
-    From string
-    To   string
-}
-
-type SupportOrder struct {
-    Unit          string
-    SupportedUnit string
-    TargetProvince string  // province being supported into (for move support)
-}
-
-type ConvoyOrder struct {
-    Fleet string
-    Army  string
-    From  string
-    To    string
+type SubmitOrderCommand struct {
+    GameID          game.GameID
+    PlayerID        game.PlayerID
+    ExpectedVersion uint64
+    Order           game.Order
 }
 ```
 
-Serialization to/from JSON for Postgres storage is handled at the `store` layer, not in the domain types themselves.
+The command includes identity and concurrency information needed to execute the use case. The authenticated web handler supplies `PlayerID`; it must not trust a separate player ID supplied by the request body.
 
----
-
-### 4. Adjudicator (`core/game/adjudicator`)
-
-A pure, stateless function. Takes a snapshot of game state and a complete order set, returns a resolution result. Has no side effects.
+Commands should not receive `*game.Game` from the web or worker layer. If callers load the game themselves, authorization, persistence, concurrency, and transaction handling become spread across multiple layers. Instead, a workflow method receives a command and loads the aggregate itself:
 
 ```go
-func Resolve(state GameState, orders []Order) Resolution
+func (w *GameWorkflow) SubmitOrder(ctx context.Context, cmd SubmitOrderCommand) error
 ```
 
-**`Resolution` contains:**
-- Which units moved successfully
-- Which units were dislodged (and from where)
-- Which orders failed and why
-- Provinces vacated by standoff (used in retreat phase to restrict valid retreat destinations)
+Inside a workflow method, private helpers may accept a loaded `*game.Game` when that makes the code clearer.
 
-#### Resolution Algorithm
+Separate command-handler structs are unnecessary while handlers remain small. If a workflow grows too large, each command may later become its own handler struct without changing command inputs or domain APIs.
 
-1. **Validation pass** — illegal orders (e.g. army moving to water) become Holds silently
-2. **Compute raw support** — for each Move, count valid SupportOrders targeting it; strength = 1 + support count
-3. **Cut support** — a Support is cut if the supporting unit is attacked from any province other than the one it is supporting into, by a foreign unit; iterate until stable
-4. **Resolve moves:**
-   - **Bounces** — two moves into the same province with equal strength: both fail
-   - **Dislodgement** — attacker strength > defender strength (hold + defensive support)
-   - **Circular moves** — detect cycles; all units in a cycle succeed together if no external blocker
-   - **Chain blockage** — if the head of a chain bounces, failure propagates back through the chain
-5. **Dislodged unit attacks** — a dislodged unit still executes its attack order unless it was attacking the province that dislodged it
-6. **Build retreat state** — collect dislodged units, record attacker origin and standoff provinces for retreat validation
+## Validation Responsibilities
 
-The adjudicator is the primary target for DATC test cases. Because it is a pure function it requires no game setup to test.
+Validation occurs at three boundaries:
 
----
+1. **Web validation** checks that the request can be parsed and required fields are present.
+2. **Application validation** checks actor authorization, game membership, expected version, and whether the requested use case is permitted.
+3. **Domain validation** checks Diplomacy rules and game-state invariants.
 
-### 5. State Machine (`core/game/game.go`)
+For example, the application verifies that the authenticated player is assigned to the nation issuing an order. `Game.SubmitOrder` verifies that the unit belongs to that nation and that the order is legal on the game map.
 
-Phases as an explicit enum. `game.Advance()` drives transitions.
+Duplicating a cheap security-sensitive check at adjacent boundaries is acceptable, but game rules should have one authoritative implementation in the domain.
 
-```
-Lobby
-  → SpringDiplomacy
-  → SpringOrders
-  → SpringResolution      ← adjudicator runs here
-  → SpringRetreats
-  → FallDiplomacy
-  → FallOrders
-  → FallResolution        ← adjudicator runs here
-  → FallRetreats
-  → Adjustments           ← build/disband orders; unit count reconciled
-  → SpringDiplomacy (next year)
+## Submit Order Flow
+
+A `SubmitOrder` request should follow this sequence:
+
+1. The web layer authenticates the user and parses the order.
+2. The web layer constructs `SubmitOrderCommand` using the authenticated player ID.
+3. `GameWorkflow.SubmitOrder` begins a transaction or unit of work.
+4. The workflow loads the game and its current version.
+5. The workflow checks that the expected version matches.
+6. The workflow authorizes the player against the game's nation assignments.
+7. The workflow loads the game's map.
+8. The workflow calls `game.SubmitOrder(order, gameMap)`.
+9. The workflow saves the game using optimistic concurrency.
+10. If submission completes the phase, the workflow records an advancement job in the transactional outbox.
+11. The transaction commits.
+
+The repository save should resemble:
+
+```go
+Save(ctx context.Context, g *game.Game, expectedVersion uint64) (newVersion uint64, err error)
 ```
 
-`Diplomacy` phases have no mechanical engine effect — they are timer windows for player communication. The engine waits for the deadline or an explicit trigger.
+If another operation already changed the game, the save returns a concurrency error rather than overwriting newer state.
 
----
+Whether all players must explicitly lock their orders or submission alone can complete a phase is a separate domain/application policy. Both policies can enqueue the same advancement command.
 
-### 6. Application Service Layer (`core/commands`)
+## Advancing and Processing Phases
 
-Command handlers sit between the HTTP/worker layer and the domain. They accept infrastructure interfaces (not concrete types) so they remain independently testable.
+Phase advancement is different from player commands because it may trigger automatic business logic. It should still enter through the workflow rather than through a web handler mutating `Game` directly.
 
-**Example — submitting an order:**
-```
-SubmitOrderCommand { GameID, PlayerID, Order }
-  → load game from repo
-  → game.PutOrder(playerID, order)
-  → gameRepo.Save(game)
-  → if game.AllOrdersSubmitted(): jobQueue.Enqueue(AdvanceGameJob{GameID})
-  → return
-```
+A durable job carries a command such as:
 
-**Example — advancing a game (called by worker):**
-```
-AdvanceGameJob { GameID }
-  → load game from repo
-  → game.Advance()           // adjudicates internally if in resolution phase
-  → gameRepo.Save(game)
-  → notifier.Notify(game.ConsumeEvents())
+```go
+type AdvanceGameCommand struct {
+    GameID          game.GameID
+    ExpectedVersion uint64
+    Trigger         AdvanceTrigger
+}
 ```
 
-The `Game` struct accumulates domain events (e.g. `PhaseAdvanced`, `UnitDislodged`, `GameOver`) during `Advance()` which the command handler drains and passes to the notifier.
+Possible triggers include all players being ready, a deadline expiring, or an administrative action. The trigger is useful for authorization and auditing; it must not alter the game rules applied.
 
----
+Each job should process one durable state transition. The workflow loads the game, verifies its version, and switches on the current phase:
 
-### 7. Background Worker & Cron (`core/worker`)
+### AcceptOrders
 
-Two triggers cause a game to advance:
-1. **All players lock orders** — controller enqueues `AdvanceGameJob` after the last lock
-2. **Deadline expires** — cron polls for games past their deadline and enqueues them
+- Verify that the trigger is allowed: all required players are ready, the deadline expired, or an administrator forced advancement.
+- Advance to `ResolveOrders`.
+- Persist the game.
+- Enqueue processing for the new version.
 
-Both paths enqueue the same job, processed by the same worker. The worker holds a DB-level advisory lock per game before calling `Advance()` to prevent double-resolution if both triggers fire simultaneously.
+### ResolveOrders
 
----
+- Load the game map.
+- Call `adjudicator.Resolve(game, gameMap)`.
+- Pass every returned `game.UnitTransform` to `game.ApplyUnitTransforms`.
+- Persist the complete adjudication result for history and player display.
+- Advance to `AcceptRetreats` when retreats exist, or to the appropriate following phase when none exist.
+- Persist the game and publish an `OrdersResolved` event.
+- Schedule any required deadline or immediate follow-up job.
 
-## Key Design Decisions
+### AcceptRetreats and AcceptAdjustments
 
-| Decision | Choice | Reason |
-|---|---|---|
-| Order types | Interface + concrete structs | Exhaustive type switches, minimal fields per type, testable |
-| Map data | Embedded JSON, sibling `gamemap` package | Data/logic separation, easy to swap maps, avoids import cycles |
-| Custom map support | Nations/threshold/positions in JSON | Engine has no hardcoded assumptions about standard Diplomacy map |
-| Adjudicator | Pure function, separate package | Fully testable against DATC cases without game setup |
-| Advance trigger | Background worker + job queue | Single code path for deadline and early resolution; HTTP layer stays thin |
-| State serialization | JSON column in Postgres | Simple for a single aggregate; revisit if query patterns demand normalization |
-| Bicoastal provinces | Coast-level graph edges | No special cases needed in adjudicator or validation |
+- Wait for player input, readiness, or a deadline.
+- Accept commands through dedicated workflow methods.
+- Once complete, advance to the matching resolution phase and enqueue it.
 
----
+### ResolveRetreats and ResolveAdjustments
 
-## Open Questions
+- Resolve the complete submitted set.
+- Apply the result atomically to the game.
+- Advance to the next input phase.
+- Persist events and any next deadline.
 
-- What does the full retreat order submission flow look like (deadline, auto-disband rules)?
-- How are adjustment (build/disband) orders structured — same `Order` interface or separate?
-- What is the dev subset map? A small slice of the real map or a purpose-built test map?
-- Where do player communication/messaging features live — in-app only, or does the engine need to model the Diplomacy phase at all?
+Automatic phases may eventually be processed in the same transaction as the transition into them, but separate durable jobs are initially easier to retry, observe, and recover. A game temporarily being in `ResolveOrders` is safe as long as the outbox guarantees that its processing job will be delivered.
+
+## Versions and Concurrency
+
+A game version is a monotonically increasing persistence value. It does not need to be part of the `Game` domain struct unless domain behavior depends on it.
+
+Every modifying command carries the version observed by its caller or scheduler. A repository update succeeds only when the stored version matches:
+
+```sql
+UPDATE games
+SET state = ?, version = version + 1
+WHERE id = ? AND version = ?
+```
+
+If no row is updated, the operation is stale. This prevents two web requests, duplicate jobs, or a deadline job and readiness job from resolving the same phase twice.
+
+Queued phase jobs should contain the version created when they were scheduled. If a worker receives a stale job, it can safely acknowledge it without changing the game.
+
+## Transactions, Jobs, and Events
+
+Saving a game and scheduling follow-up work must be atomic. Otherwise the game could be saved in `ResolveOrders` while the process crashes before enqueueing its resolver job.
+
+Use a transactional outbox:
+
+1. Save the updated game.
+2. Insert jobs and events into outbox rows in the same database transaction.
+3. Commit.
+4. An infrastructure worker publishes pending outbox rows to the job queue or notification system.
+
+Application code emits facts such as:
+
+- `OrdersRequested`;
+- `OrdersResolved`;
+- `RetreatsRequested`;
+- `PhaseAdvanced`;
+- `GameCompleted`.
+
+Notification handlers consume those events. `GameWorkflow` should not send email or websocket messages directly because external delivery cannot participate reliably in the game-state transaction.
+
+The full adjudicator resolution, including order outcomes and reason codes, should be stored as history or as event data. Only unit transforms need to be applied to the `Game` aggregate.
+
+## Repository Interfaces
+
+Interfaces belong to the application package that consumes them, not to infrastructure packages.
+
+A minimal starting point is:
+
+```go
+type StoredGame struct {
+    Game    *game.Game
+    Version uint64
+}
+
+type GameRepository interface {
+    Get(ctx context.Context, id game.GameID) (StoredGame, error)
+    Save(ctx context.Context, g *game.Game, expectedVersion uint64) (uint64, error)
+}
+
+type GameMapRepository interface {
+    Get(ctx context.Context, id gamemap.MapID) (*gamemap.GameMap, error)
+}
+```
+
+Tests can provide in-memory implementations. Postgres and embedded-map implementations belong in infrastructure packages.
+
+Transaction handling may later require repository methods to operate through a unit-of-work value. That choice should follow the selected database library rather than being abstracted prematurely.
+
+## Error Handling
+
+Application errors should distinguish conditions the outer layer needs to map differently:
+
+- unauthenticated or unauthorized actor;
+- game or map not found;
+- stale version;
+- invalid command;
+- domain-rule violation;
+- transient infrastructure failure.
+
+The web layer maps these categories to HTTP responses. Workers use them to decide whether a job should be acknowledged, retried, or moved to a dead-letter queue.
+
+Domain errors should remain meaningful without containing HTTP status codes.
+
+## Testing Strategy
+
+### Domain tests
+
+Test game rules directly with in-memory values. These tests cover order validation, adjudication, transforms, retreats, adjustments, and phase transitions without repositories or HTTP.
+
+### Application tests
+
+Construct `GameWorkflow` with fake repositories, maps, queues, and event publishers. Verify complete use cases:
+
+- authorization occurs before mutation;
+- the correct domain method is invoked through observable state changes;
+- successful commands save with the expected version;
+- stale commands do not mutate persisted state;
+- adjudication results are applied and recorded;
+- follow-up jobs and events are emitted;
+- failures do not partially save state or enqueue work.
+
+### Web tests
+
+Test request parsing, authentication integration, command construction, and error-to-response mapping. Do not repeat domain adjudication cases through HTTP.
+
+### Infrastructure tests
+
+Use integration tests for optimistic updates, transactions, outbox delivery, serialization, and repository round trips.
+
+## Initial Implementation Sequence
+
+1. Create `application/gameplay` and define `GameWorkflow`, `GameRepository`, and `GameMapRepository`.
+2. Implement `SubmitOrderCommand` and its workflow method using in-memory test doubles.
+3. Add versioned repository behavior.
+4. Implement `AdvanceGameCommand` for `AcceptOrders` and `ResolveOrders`.
+5. Persist adjudication history and enqueue follow-up work through an outbox abstraction.
+6. Add thin HTTP handlers and a worker adapter.
+7. Extend the same workflow for retreats and adjustments.
+
+This sequence creates one complete order-submission and resolution path before adding more domain phases or production infrastructure.
+
+## Decisions to Keep Explicit
+
+The following policies should remain explicit application or domain decisions rather than emerging accidentally from infrastructure behavior:
+
+- whether order completion requires explicit player readiness;
+- whether no-retreat turns skip the retreat input phase;
+- deadline ownership and duration;
+- administrative force-advance permissions;
+- retry and dead-letter behavior;
+- how adjudication history is presented and retained;
+- whether automatic phases use separate jobs or execute immediately.
