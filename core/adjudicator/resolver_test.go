@@ -20,7 +20,7 @@ func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Orde
 
 func wantMove(t *testing.T, o Outcome, to gamemap.ProvinceID) {
 	t.Helper()
-	if o.Unit.Type != game.MovementResultMove {
+	if o.Unit.Type != game.UnitTransformMove {
 		t.Errorf("unit %q: type = %q, want move", o.UnitID, o.Unit.Type)
 	}
 	if o.Unit.To != to {
@@ -33,7 +33,7 @@ func wantMove(t *testing.T, o Outcome, to gamemap.ProvinceID) {
 
 func wantHold(t *testing.T, o Outcome, success bool, reason ReasonCode) {
 	t.Helper()
-	if o.Unit.Type != game.MovementResultHold {
+	if o.Unit.Type != game.UnitTransformHold {
 		t.Errorf("unit %q: type = %q, want hold", o.UnitID, o.Unit.Type)
 	}
 	if o.Order.Success != success {
@@ -46,7 +46,7 @@ func wantHold(t *testing.T, o Outcome, success bool, reason ReasonCode) {
 
 func wantRetreat(t *testing.T, o Outcome) {
 	t.Helper()
-	if o.Unit.Type != game.MovementResultRetreat {
+	if o.Unit.Type != game.UnitTransformRetreat {
 		t.Errorf("unit %q: type = %q, want retreat", o.UnitID, o.Unit.Type)
 	}
 	if o.Order.Success {

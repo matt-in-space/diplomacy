@@ -20,14 +20,14 @@ func (rc *resolutionContext) buildResolution(turn game.Turn) Resolution {
 	return Resolution{Turn: turn, Outcomes: outcomes}
 }
 
-func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.MovementResult, OrderOutcome) {
+func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.UnitTransform, OrderOutcome) {
 	order := rc.allOrders[id]
 
 	if move, ok := rc.effectiveMoveOrders[id]; ok {
 		if rc.resolution[id] {
-			unitOutcome := game.MovementResult{
+			unitOutcome := game.UnitTransform{
 				UnitID: id,
-				Type:   game.MovementResultMove,
+				Type:   game.UnitTransformMove,
 				From:   unit.ProvinceID,
 				To:     move.Target,
 				Coast:  rc.resolveMoveCoast(unit, move),
@@ -81,20 +81,20 @@ func (rc *resolutionContext) isDislodged(id game.UnitID, unit game.Unit) bool {
 	return rc.provinceAttackedSuccessfully(unit.ProvinceID, id)
 }
 
-func (rc *resolutionContext) holdOutcome(id game.UnitID, unit game.Unit) game.MovementResult {
-	return game.MovementResult{
+func (rc *resolutionContext) holdOutcome(id game.UnitID, unit game.Unit) game.UnitTransform {
+	return game.UnitTransform{
 		UnitID: id,
-		Type:   game.MovementResultHold,
+		Type:   game.UnitTransformHold,
 		From:   unit.ProvinceID,
 		To:     unit.ProvinceID,
 		Coast:  rc.fleetCoasts[id],
 	}
 }
 
-func (rc *resolutionContext) retreatOutcome(id game.UnitID, unit game.Unit) game.MovementResult {
-	return game.MovementResult{
+func (rc *resolutionContext) retreatOutcome(id game.UnitID, unit game.Unit) game.UnitTransform {
+	return game.UnitTransform{
 		UnitID: id,
-		Type:   game.MovementResultRetreat,
+		Type:   game.UnitTransformRetreat,
 		From:   unit.ProvinceID,
 		To:     "",
 		Coast:  rc.fleetCoasts[id],

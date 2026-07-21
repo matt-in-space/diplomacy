@@ -18,7 +18,7 @@ type Resolution struct {
 // Outcome describes the result for a single unit after adjudication.
 type Outcome struct {
 	UnitID game.UnitID
-	Unit   game.MovementResult
+	Unit   game.UnitTransform
 	Order  OrderOutcome
 }
 
