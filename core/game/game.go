@@ -16,7 +16,8 @@ type NewGameConfig struct {
 }
 
 type Dislodgement struct {
-	From gamemap.ProvinceID
+	From  gamemap.ProvinceID
+	Coast gamemap.CoastID
 }
 
 type Game struct {

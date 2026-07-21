@@ -1,7 +1,7 @@
 package game
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
@@ -24,68 +24,95 @@ type UnitTransform struct {
 }
 
 func (g *Game) ApplyUnitTransforms(results []UnitTransform) error {
-	err := validateResults(results)
-	if err != nil {
+	if err := g.validateUnitTransforms(results); err != nil {
 		return err
 	}
+
+	units := make(map[UnitID]Unit, len(results))
+	positions := make(map[gamemap.ProvinceID]UnitID, len(results))
+	fleetCoasts := make(map[UnitID]gamemap.CoastID)
+	pendingRetreats := make(map[UnitID]Dislodgement)
+
 	for _, result := range results {
+		unit := g.Units[result.UnitID]
+
+		switch result.Type {
+		case UnitTransformMove, UnitTransformHold:
+			unit.ProvinceID = result.To
+			positions[result.To] = unit.ID
+			if unit.Type == UnitTypeFleet {
+				fleetCoasts[unit.ID] = result.Coast
+			}
+		case UnitTransformRetreat:
+			unit.ProvinceID = ""
+			pendingRetreats[unit.ID] = Dislodgement{
+				From:  result.From,
+				Coast: result.Coast,
+			}
+		}
+
+		units[unit.ID] = unit
+	}
+
+	g.Units = units
+	g.Positions = positions
+	g.FleetCoasts = fleetCoasts
+	g.PendingRetreats = pendingRetreats
+
+	return nil
+}
+
+func (g *Game) validateUnitTransforms(results []UnitTransform) error {
+	if len(results) != len(g.Units) {
+		return fmt.Errorf("received %d unit transforms for %d units", len(results), len(g.Units))
+	}
+
+	units := make(map[UnitID]struct{}, len(results))
+	destinations := make(map[gamemap.ProvinceID]UnitID, len(results))
+
+	for _, result := range results {
+		if _, ok := units[result.UnitID]; ok {
+			return fmt.Errorf("duplicate transform for unit %q", result.UnitID)
+		}
+		units[result.UnitID] = struct{}{}
+
 		unit, ok := g.Units[result.UnitID]
 		if !ok {
-			return errors.New("unit not found")
+			return fmt.Errorf("unit %q not found", result.UnitID)
 		}
-
 		if result.From != unit.ProvinceID {
-			return errors.New("from position does not match")
+			return fmt.Errorf("unit %q is in province %q, not %q", result.UnitID, unit.ProvinceID, result.From)
 		}
-
-		pid, ok := g.Positions[result.From]
-		if !ok {
-			return errors.New("previous position for unit not found")
+		if occupant, ok := g.Positions[result.From]; !ok || occupant != result.UnitID {
+			return fmt.Errorf("province %q is not occupied by unit %q", result.From, result.UnitID)
 		}
 
 		switch result.Type {
 		case UnitTransformMove:
-			unit.ProvinceID = result.To
-			g.Positions[result.To] = unit.ID
-			if pid == unit.ID {
-				delete(g.Positions, result.From)
+			if result.To == "" {
+				return fmt.Errorf("move transform for unit %q has no destination", result.UnitID)
 			}
-			if unit.Type == UnitTypeFleet {
-				g.FleetCoasts[unit.ID] = result.Coast
+			if result.To == result.From {
+				return fmt.Errorf("move transform for unit %q does not change province", result.UnitID)
 			}
-			g.Units[unit.ID] = unit
-
-		case UnitTransformRetreat:
-			unit.ProvinceID = ""
-			if pid == unit.ID {
-				delete(g.Positions, result.From)
-			}
-			if unit.Type == UnitTypeFleet {
-				delete(g.FleetCoasts, unit.ID)
-			}
-			g.Units[unit.ID] = unit
-			g.PendingRetreats[unit.ID] = Dislodgement{
-				From: result.From,
-			}
-
 		case UnitTransformHold:
-			// No-op
-		}
-
-	}
-	return nil
-}
-
-func validateResults(results []UnitTransform) error {
-	seen := make(map[gamemap.ProvinceID]struct{})
-	for _, result := range results {
-		if result.Type == UnitTransformRetreat {
+			if result.To != result.From {
+				return fmt.Errorf("hold transform for unit %q changes province", result.UnitID)
+			}
+		case UnitTransformRetreat:
+			if result.To != "" {
+				return fmt.Errorf("retreat transform for unit %q has destination %q", result.UnitID, result.To)
+			}
 			continue
+		default:
+			return fmt.Errorf("unknown transform type %q for unit %q", result.Type, result.UnitID)
 		}
-		if _, ok := seen[result.To]; ok {
-			return errors.New("duplicate province in results")
+
+		if other, ok := destinations[result.To]; ok {
+			return fmt.Errorf("units %q and %q both end in province %q", other, result.UnitID, result.To)
 		}
-		seen[result.To] = struct{}{}
+		destinations[result.To] = result.UnitID
 	}
+
 	return nil
 }
