@@ -9,7 +9,8 @@ import (
 func main() {
 	fmt.Println("Starting new Diplomacy service...")
 	games := gameplay.NewMemoryGameRepository()
-	s := gameplay.NewService(games)
+	players := gameplay.NewMemoryPlayerRepository()
+	s := gameplay.NewService(games, players)
 	_ = s
 	fmt.Println("Diplomacy service running!")
 }

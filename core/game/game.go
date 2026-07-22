@@ -9,7 +9,6 @@ import (
 )
 
 type GameID string
-type PlayerID string
 
 type NewGameConfig struct {
 	ID          GameID

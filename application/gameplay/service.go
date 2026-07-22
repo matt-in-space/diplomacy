@@ -1,11 +1,13 @@
 package gameplay
 
 type Service struct {
-	games GameRepository
+	games   GameRepository
+	players PlayerRepository
 }
 
-func NewService(games GameRepository) *Service {
+func NewService(games GameRepository, players PlayerRepository) *Service {
 	return &Service{
-		games: games,
+		games:   games,
+		players: players,
 	}
 }
