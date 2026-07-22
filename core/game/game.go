@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/matt-in-space/diplomacy/core/gamemap"
@@ -98,4 +99,15 @@ func unitTypeFromStartingUnit(unitType gamemap.StartingUnitType) (UnitType, erro
 
 func startingUnitID(unit gamemap.StartingUnit) UnitID {
 	return UnitID(fmt.Sprintf("%s-%s-%s-start", unit.Nation, unit.Type, unit.Province))
+}
+
+func (g *Game) Clone() *Game {
+	clone := *g
+	clone.Assignments = maps.Clone(g.Assignments)
+	clone.Units = maps.Clone(g.Units)
+	clone.Positions = maps.Clone(g.Positions)
+	clone.FleetCoasts = maps.Clone(g.FleetCoasts)
+	clone.Orders = maps.Clone(g.Orders)
+	clone.PendingRetreats = maps.Clone(g.PendingRetreats)
+	return &clone
 }

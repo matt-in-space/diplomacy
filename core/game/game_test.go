@@ -90,6 +90,45 @@ func TestNewGame_CopiesAssignments(t *testing.T) {
 	}
 }
 
+func TestGameCloneCopiesReferenceState(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	g.PendingRetreats["fra-army-par-start"] = game.Dislodgement{From: "par"}
+
+	clone := g.Clone()
+	if clone == g {
+		t.Fatal("Clone returned the original game pointer")
+	}
+
+	clone.Assignments["eng"] = "changed-player"
+	unit := clone.Units["fra-army-par-start"]
+	unit.ProvinceID = "bur"
+	clone.Units[unit.ID] = unit
+	delete(clone.Positions, "par")
+	clone.FleetCoasts["fra-fleet-bre-start"] = "changed-coast"
+	clone.Orders["fra-army-par-start"] = game.NewHoldOrder("fra-army-par-start", "fra")
+	delete(clone.PendingRetreats, "fra-army-par-start")
+
+	if got := g.Assignments["eng"]; got != "player-1" {
+		t.Fatalf("original assignment = %q, want player-1", got)
+	}
+	if got := g.Units["fra-army-par-start"].ProvinceID; got != "par" {
+		t.Fatalf("original unit province = %q, want par", got)
+	}
+	if got := g.Positions["par"]; got != "fra-army-par-start" {
+		t.Fatalf("original position = %q, want fra-army-par-start", got)
+	}
+	if got := g.FleetCoasts["fra-fleet-bre-start"]; got != "bre" {
+		t.Fatalf("original fleet coast = %q, want bre", got)
+	}
+	if _, ok := g.Orders["fra-army-par-start"]; ok {
+		t.Fatal("clone order was added to original game")
+	}
+	if _, ok := g.PendingRetreats["fra-army-par-start"]; !ok {
+		t.Fatal("clone retreat deletion affected original game")
+	}
+}
+
 func TestNewGame_RejectsUnknownAssignmentNation(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 
