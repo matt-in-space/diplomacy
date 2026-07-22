@@ -13,7 +13,7 @@ var (
 )
 
 type PlayerRepository interface {
-	Create(ctx context.Context, player *game.Player) error
-	Get(ctx context.Context, id game.PlayerID) (*game.Player, error)
-	Save(ctx context.Context, player *game.Player) error
+	CreatePlayer(ctx context.Context, player *game.Player) error
+	GetPlayer(ctx context.Context, id game.PlayerID) (*game.Player, error)
+	SavePlayer(ctx context.Context, player *game.Player) error
 }

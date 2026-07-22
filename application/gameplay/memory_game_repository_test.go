@@ -9,15 +9,15 @@ import (
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
-func TestMemoryGameRepositoryCreateAndGet(t *testing.T) {
+func TestMemoryGameRepositoryCreateAndGetGame(t *testing.T) {
 	repo := NewMemoryGameRepository()
 	g := repositoryTestGame("test-game")
 
-	if err := repo.Create(context.Background(), g); err != nil {
+	if err := repo.CreateGame(context.Background(), g); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	stored, err := repo.Get(context.Background(), g.ID)
+	stored, err := repo.GetGame(context.Background(), g.ID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -34,10 +34,10 @@ func TestMemoryGameRepositoryRejectsDuplicateGame(t *testing.T) {
 	g := repositoryTestGame("test-game")
 	ctx := context.Background()
 
-	if err := repo.Create(ctx, g); err != nil {
+	if err := repo.CreateGame(ctx, g); err != nil {
 		t.Fatalf("first Create failed: %v", err)
 	}
-	if err := repo.Create(ctx, g); !errors.Is(err, ErrGameAlreadyExists) {
+	if err := repo.CreateGame(ctx, g); !errors.Is(err, ErrGameAlreadyExists) {
 		t.Fatalf("second Create error = %v, want ErrGameAlreadyExists", err)
 	}
 }
@@ -45,7 +45,7 @@ func TestMemoryGameRepositoryRejectsDuplicateGame(t *testing.T) {
 func TestMemoryGameRepositoryGetRejectsUnknownGame(t *testing.T) {
 	repo := NewMemoryGameRepository()
 
-	_, err := repo.Get(context.Background(), "missing-game")
+	_, err := repo.GetGame(context.Background(), "missing-game")
 	if !errors.Is(err, ErrGameNotFound) {
 		t.Fatalf("Get error = %v, want ErrGameNotFound", err)
 	}
@@ -55,17 +55,17 @@ func TestMemoryGameRepositorySaveUpdatesGameAndVersion(t *testing.T) {
 	repo := NewMemoryGameRepository()
 	ctx := context.Background()
 	g := repositoryTestGame("test-game")
-	if err := repo.Create(ctx, g); err != nil {
+	if err := repo.CreateGame(ctx, g); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	stored, err := repo.Get(ctx, g.ID)
+	stored, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
 	stored.Game.Turn.Year = 2
 
-	version, err := repo.Save(ctx, stored.Game, stored.Version)
+	version, err := repo.SaveGame(ctx, stored.Game, stored.Version)
 	if err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestMemoryGameRepositorySaveUpdatesGameAndVersion(t *testing.T) {
 		t.Fatalf("Save version = %d, want 1", version)
 	}
 
-	updated, err := repo.Get(ctx, g.ID)
+	updated, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("Get after Save failed: %v", err)
 	}
@@ -85,34 +85,34 @@ func TestMemoryGameRepositorySaveUpdatesGameAndVersion(t *testing.T) {
 	}
 }
 
-func TestMemoryGameRepositoryRejectsStaleSave(t *testing.T) {
+func TestMemoryGameRepositoryRejectsStaleSaveGame(t *testing.T) {
 	repo := NewMemoryGameRepository()
 	ctx := context.Background()
 	g := repositoryTestGame("test-game")
-	if err := repo.Create(ctx, g); err != nil {
+	if err := repo.CreateGame(ctx, g); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	first, err := repo.Get(ctx, g.ID)
+	first, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("first Get failed: %v", err)
 	}
-	second, err := repo.Get(ctx, g.ID)
+	second, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("second Get failed: %v", err)
 	}
 
 	first.Game.Turn.Year = 2
-	if _, err := repo.Save(ctx, first.Game, first.Version); err != nil {
+	if _, err := repo.SaveGame(ctx, first.Game, first.Version); err != nil {
 		t.Fatalf("first Save failed: %v", err)
 	}
 
 	second.Game.Turn.Year = 3
-	if _, err := repo.Save(ctx, second.Game, second.Version); !errors.Is(err, ErrConcurrentUpdate) {
+	if _, err := repo.SaveGame(ctx, second.Game, second.Version); !errors.Is(err, ErrConcurrentUpdate) {
 		t.Fatalf("stale Save error = %v, want ErrConcurrentUpdate", err)
 	}
 
-	stored, err := repo.Get(ctx, g.ID)
+	stored, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("final Get failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestMemoryGameRepositorySaveRejectsUnknownGame(t *testing.T) {
 	repo := NewMemoryGameRepository()
 	g := repositoryTestGame("missing-game")
 
-	_, err := repo.Save(context.Background(), g, 0)
+	_, err := repo.SaveGame(context.Background(), g, 0)
 	if !errors.Is(err, ErrGameNotFound) {
 		t.Fatalf("Save error = %v, want ErrGameNotFound", err)
 	}
@@ -136,14 +136,14 @@ func TestMemoryGameRepositoryStoresDetachedSnapshots(t *testing.T) {
 	ctx := context.Background()
 	g := repositoryTestGame("test-game")
 
-	if err := repo.Create(ctx, g); err != nil {
+	if err := repo.CreateGame(ctx, g); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 	g.Turn.Year = 9
 	g.Assignments["eng"] = "changed-player"
 	g.Units["unit-a"] = game.Unit{ID: "unit-a", ProvinceID: "changed"}
 
-	stored, err := repo.Get(ctx, g.ID)
+	stored, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestMemoryGameRepositoryStoresDetachedSnapshots(t *testing.T) {
 
 	stored.Game.Turn.Year = 8
 	stored.Game.Positions["lon"] = "changed-unit"
-	again, err := repo.Get(ctx, g.ID)
+	again, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("second Get failed: %v", err)
 	}
@@ -175,21 +175,21 @@ func TestMemoryGameRepositorySaveStoresDetachedSnapshot(t *testing.T) {
 	repo := NewMemoryGameRepository()
 	ctx := context.Background()
 	g := repositoryTestGame("test-game")
-	if err := repo.Create(ctx, g); err != nil {
+	if err := repo.CreateGame(ctx, g); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	stored, err := repo.Get(ctx, g.ID)
+	stored, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
 	stored.Game.Turn.Year = 2
-	if _, err := repo.Save(ctx, stored.Game, stored.Version); err != nil {
+	if _, err := repo.SaveGame(ctx, stored.Game, stored.Version); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 	stored.Game.Turn.Year = 3
 
-	again, err := repo.Get(ctx, g.ID)
+	again, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("Get after Save failed: %v", err)
 	}
@@ -203,13 +203,13 @@ func TestMemoryGameRepositoryHonorsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if err := repo.Create(ctx, repositoryTestGame("test-game")); !errors.Is(err, context.Canceled) {
+	if err := repo.CreateGame(ctx, repositoryTestGame("test-game")); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Create error = %v, want context.Canceled", err)
 	}
-	if _, err := repo.Get(ctx, "test-game"); !errors.Is(err, context.Canceled) {
+	if _, err := repo.GetGame(ctx, "test-game"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Get error = %v, want context.Canceled", err)
 	}
-	if _, err := repo.Save(ctx, repositoryTestGame("test-game"), 0); !errors.Is(err, context.Canceled) {
+	if _, err := repo.SaveGame(ctx, repositoryTestGame("test-game"), 0); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Save error = %v, want context.Canceled", err)
 	}
 }

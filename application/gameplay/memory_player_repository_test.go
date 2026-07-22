@@ -8,15 +8,15 @@ import (
 	"github.com/matt-in-space/diplomacy/core/game"
 )
 
-func TestMemoryPlayerRepositoryCreateAndGet(t *testing.T) {
+func TestMemoryPlayerRepositoryCreateAndGetPlayer(t *testing.T) {
 	repo := NewMemoryPlayerRepository()
 	player := &game.Player{ID: "player-a"}
 
-	if err := repo.Create(context.Background(), player); err != nil {
+	if err := repo.CreatePlayer(context.Background(), player); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	stored, err := repo.Get(context.Background(), player.ID)
+	stored, err := repo.GetPlayer(context.Background(), player.ID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -30,10 +30,10 @@ func TestMemoryPlayerRepositoryRejectsDuplicatePlayer(t *testing.T) {
 	player := &game.Player{ID: "player-a"}
 	ctx := context.Background()
 
-	if err := repo.Create(ctx, player); err != nil {
+	if err := repo.CreatePlayer(ctx, player); err != nil {
 		t.Fatalf("first Create failed: %v", err)
 	}
-	if err := repo.Create(ctx, player); !errors.Is(err, ErrPlayerAlreadyExists) {
+	if err := repo.CreatePlayer(ctx, player); !errors.Is(err, ErrPlayerAlreadyExists) {
 		t.Fatalf("second Create error = %v, want ErrPlayerAlreadyExists", err)
 	}
 }
@@ -41,7 +41,7 @@ func TestMemoryPlayerRepositoryRejectsDuplicatePlayer(t *testing.T) {
 func TestMemoryPlayerRepositoryGetRejectsUnknownPlayer(t *testing.T) {
 	repo := NewMemoryPlayerRepository()
 
-	_, err := repo.Get(context.Background(), "missing-player")
+	_, err := repo.GetPlayer(context.Background(), "missing-player")
 	if !errors.Is(err, ErrPlayerNotFound) {
 		t.Fatalf("Get error = %v, want ErrPlayerNotFound", err)
 	}
@@ -52,10 +52,10 @@ func TestMemoryPlayerRepositorySaveExistingPlayer(t *testing.T) {
 	player := &game.Player{ID: "player-a"}
 	ctx := context.Background()
 
-	if err := repo.Create(ctx, player); err != nil {
+	if err := repo.CreatePlayer(ctx, player); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	if err := repo.Save(ctx, player); err != nil {
+	if err := repo.SavePlayer(ctx, player); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 }
@@ -63,7 +63,7 @@ func TestMemoryPlayerRepositorySaveExistingPlayer(t *testing.T) {
 func TestMemoryPlayerRepositorySaveRejectsUnknownPlayer(t *testing.T) {
 	repo := NewMemoryPlayerRepository()
 
-	err := repo.Save(context.Background(), &game.Player{ID: "missing-player"})
+	err := repo.SavePlayer(context.Background(), &game.Player{ID: "missing-player"})
 	if !errors.Is(err, ErrPlayerNotFound) {
 		t.Fatalf("Save error = %v, want ErrPlayerNotFound", err)
 	}
@@ -74,12 +74,12 @@ func TestMemoryPlayerRepositoryStoresDetachedValues(t *testing.T) {
 	ctx := context.Background()
 	player := &game.Player{ID: "player-a"}
 
-	if err := repo.Create(ctx, player); err != nil {
+	if err := repo.CreatePlayer(ctx, player); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 	player.ID = "changed-player"
 
-	stored, err := repo.Get(ctx, "player-a")
+	stored, err := repo.GetPlayer(ctx, "player-a")
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestMemoryPlayerRepositoryStoresDetachedValues(t *testing.T) {
 	}
 
 	stored.ID = "another-player"
-	again, err := repo.Get(ctx, "player-a")
+	again, err := repo.GetPlayer(ctx, "player-a")
 	if err != nil {
 		t.Fatalf("second Get failed: %v", err)
 	}
@@ -101,10 +101,10 @@ func TestMemoryPlayerRepositoryRejectsNilPlayer(t *testing.T) {
 	repo := NewMemoryPlayerRepository()
 	ctx := context.Background()
 
-	if err := repo.Create(ctx, nil); err == nil {
+	if err := repo.CreatePlayer(ctx, nil); err == nil {
 		t.Fatal("expected Create to reject nil player")
 	}
-	if err := repo.Save(ctx, nil); err == nil {
+	if err := repo.SavePlayer(ctx, nil); err == nil {
 		t.Fatal("expected Save to reject nil player")
 	}
 }
@@ -114,13 +114,13 @@ func TestMemoryPlayerRepositoryHonorsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if err := repo.Create(ctx, &game.Player{ID: "player-a"}); !errors.Is(err, context.Canceled) {
+	if err := repo.CreatePlayer(ctx, &game.Player{ID: "player-a"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Create error = %v, want context.Canceled", err)
 	}
-	if _, err := repo.Get(ctx, "player-a"); !errors.Is(err, context.Canceled) {
+	if _, err := repo.GetPlayer(ctx, "player-a"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Get error = %v, want context.Canceled", err)
 	}
-	if err := repo.Save(ctx, &game.Player{ID: "player-a"}); !errors.Is(err, context.Canceled) {
+	if err := repo.SavePlayer(ctx, &game.Player{ID: "player-a"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Save error = %v, want context.Canceled", err)
 	}
 }

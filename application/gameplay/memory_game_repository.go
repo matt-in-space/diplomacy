@@ -24,7 +24,7 @@ func NewMemoryGameRepository() *MemoryGameRepository {
 	}
 }
 
-func (r *MemoryGameRepository) Create(ctx context.Context, g *game.Game) error {
+func (r *MemoryGameRepository) CreateGame(ctx context.Context, g *game.Game) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (r *MemoryGameRepository) Create(ctx context.Context, g *game.Game) error {
 	return nil
 }
 
-func (r *MemoryGameRepository) Get(ctx context.Context, gameID game.GameID) (StoredGame, error) {
+func (r *MemoryGameRepository) GetGame(ctx context.Context, gameID game.GameID) (StoredGame, error) {
 	if err := ctx.Err(); err != nil {
 		return StoredGame{}, err
 	}
@@ -63,7 +63,7 @@ func (r *MemoryGameRepository) Get(ctx context.Context, gameID game.GameID) (Sto
 	return stored, nil
 }
 
-func (r *MemoryGameRepository) Save(ctx context.Context, g *game.Game, expectedVersion uint64) (uint64, error) {
+func (r *MemoryGameRepository) SaveGame(ctx context.Context, g *game.Game, expectedVersion uint64) (uint64, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}

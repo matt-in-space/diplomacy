@@ -20,7 +20,7 @@ func NewMemoryPlayerRepository() *MemoryPlayerRepository {
 	}
 }
 
-func (r *MemoryPlayerRepository) Create(ctx context.Context, player *game.Player) error {
+func (r *MemoryPlayerRepository) CreatePlayer(ctx context.Context, player *game.Player) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (r *MemoryPlayerRepository) Create(ctx context.Context, player *game.Player
 	return nil
 }
 
-func (r *MemoryPlayerRepository) Get(ctx context.Context, id game.PlayerID) (*game.Player, error) {
+func (r *MemoryPlayerRepository) GetPlayer(ctx context.Context, id game.PlayerID) (*game.Player, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (r *MemoryPlayerRepository) Get(ctx context.Context, id game.PlayerID) (*ga
 	return &player, nil
 }
 
-func (r *MemoryPlayerRepository) Save(ctx context.Context, player *game.Player) error {
+func (r *MemoryPlayerRepository) SavePlayer(ctx context.Context, player *game.Player) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

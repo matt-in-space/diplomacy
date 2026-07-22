@@ -19,7 +19,7 @@ type StoredGame struct {
 }
 
 type GameRepository interface {
-	Create(ctx context.Context, g *game.Game) error
-	Get(ctx context.Context, gameID game.GameID) (StoredGame, error)
-	Save(ctx context.Context, g *game.Game, expectedVersion uint64) (uint64, error)
+	CreateGame(ctx context.Context, g *game.Game) error
+	GetGame(ctx context.Context, gameID game.GameID) (StoredGame, error)
+	SaveGame(ctx context.Context, g *game.Game, expectedVersion uint64) (uint64, error)
 }
