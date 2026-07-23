@@ -129,6 +129,39 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	}
 }
 
+func TestPlayerControlsNation(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g, err := game.NewGame(game.NewGameConfig{
+		ID: "game-1",
+		Assignments: map[gamemap.NationID]game.PlayerID{
+			"eng": "player-1",
+			"fra": "player-2",
+		},
+	}, gm)
+	if err != nil {
+		t.Fatalf("NewGame failed: %v", err)
+	}
+
+	testCases := []struct {
+		playerPlayerID game.PlayerID
+		nation         gamemap.NationID
+		want           bool
+	}{
+		{"player-1", "eng", true},
+		{"player-1", "fra", false},
+		{"player-2", "fra", true},
+		{"player-2", "eng", false},
+		{"player-3", "eng", false},  // Player not assigned to any nation
+		{"player-1", "prus", false}, // Nation not in game
+	}
+
+	for _, tt := range testCases {
+		if got := g.PlayerControlsNation(tt.playerPlayerID, tt.nation); got != tt.want {
+			t.Errorf("PlayerControlsNation(%q, %q) = %v, want %v", tt.playerPlayerID, tt.nation, got, tt.want)
+		}
+	}
+}
+
 func TestNewGame_RejectsUnknownAssignmentNation(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 

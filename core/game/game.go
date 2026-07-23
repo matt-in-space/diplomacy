@@ -85,6 +85,13 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 	return g, nil
 }
 
+func (g *Game) PlayerControlsNation(player PlayerID, nation gamemap.NationID) bool {
+	if pid, ok := g.Assignments[nation]; ok && pid == player {
+		return true
+	}
+	return false
+}
+
 func unitTypeFromStartingUnit(unitType gamemap.StartingUnitType) (UnitType, error) {
 	switch unitType {
 	case gamemap.StartingUnitTypeArmy:
