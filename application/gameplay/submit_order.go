@@ -16,21 +16,21 @@ type SubmitOrderCommand struct {
 }
 
 // NewSubmitOrderCommand validates and creates a new SubmitOrderCommand.
-func NewSubmitOrderCommand(gameID game.GameID, playerID game.PlayerID, expectedVersion uint64, order game.Order) (*SubmitOrderCommand, error) {
+func NewSubmitOrderCommand(gameID game.GameID, playerID game.PlayerID, expectedVersion uint64, order game.Order) (SubmitOrderCommand, error) {
 	if gameID == "" {
-		return nil, errors.New("game ID is required")
+		return SubmitOrderCommand{}, errors.New("game ID is required")
 	}
 	if playerID == "" {
-		return nil, errors.New("player ID is required")
+		return SubmitOrderCommand{}, errors.New("player ID is required")
 	}
 	if order == nil {
-		return nil, errors.New("order is required")
+		return SubmitOrderCommand{}, errors.New("order is required")
 	}
 	if expectedVersion == 0 { // Assuming 0 is an invalid version for expectedVersion
-		return nil, errors.New("expected version is required")
+		return SubmitOrderCommand{}, errors.New("expected version is required")
 	}
 
-	return &SubmitOrderCommand{
+	return SubmitOrderCommand{
 		GameID:          gameID,
 		PlayerID:        playerID,
 		ExpectedVersion: expectedVersion,
