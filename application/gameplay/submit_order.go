@@ -26,9 +26,6 @@ func NewSubmitOrderCommand(gameID game.GameID, playerID game.PlayerID, expectedV
 	if order == nil {
 		return SubmitOrderCommand{}, errors.New("order is required")
 	}
-	if expectedVersion == 0 { // Assuming 0 is an invalid version for expectedVersion
-		return SubmitOrderCommand{}, errors.New("expected version is required")
-	}
 
 	return SubmitOrderCommand{
 		GameID:          gameID,
