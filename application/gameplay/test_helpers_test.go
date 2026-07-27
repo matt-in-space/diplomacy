@@ -28,6 +28,7 @@ func repositoryTestGame(id game.GameID) *game.Game {
 			"unit-a": "lon",
 		},
 		Orders:          make(map[game.UnitID]game.Order),
+		CommittedOrders: make(map[gamemap.NationID]struct{}),
 		PendingRetreats: make(map[game.UnitID]game.Dislodgement),
 	}
 }

@@ -29,6 +29,7 @@ type Game struct {
 	Positions       map[gamemap.ProvinceID]UnitID
 	FleetCoasts     map[UnitID]gamemap.CoastID
 	Orders          map[UnitID]Order
+	CommittedOrders map[gamemap.NationID]struct{}
 	PendingRetreats map[UnitID]Dislodgement
 }
 
@@ -46,6 +47,7 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		Positions:       make(map[gamemap.ProvinceID]UnitID, len(gm.StartingUnits)),
 		FleetCoasts:     make(map[UnitID]gamemap.CoastID),
 		Orders:          make(map[UnitID]Order),
+		CommittedOrders: make(map[gamemap.NationID]struct{}),
 		PendingRetreats: make(map[UnitID]Dislodgement),
 	}
 
@@ -114,6 +116,8 @@ func (g *Game) Clone() *Game {
 	clone.Positions = maps.Clone(g.Positions)
 	clone.FleetCoasts = maps.Clone(g.FleetCoasts)
 	clone.Orders = maps.Clone(g.Orders)
+	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
 	clone.PendingRetreats = maps.Clone(g.PendingRetreats)
+
 	return &clone
 }
