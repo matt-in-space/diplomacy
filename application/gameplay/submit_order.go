@@ -38,7 +38,6 @@ func NewSubmitOrderCommand(gameID game.GameID, playerID game.PlayerID, expectedV
 func (s *GameplayService) SubmitOrder(ctx context.Context, cmd SubmitOrderCommand) error {
 	stored, err := s.games.GetGame(ctx, cmd.GameID)
 	if err != nil {
-		// games.GetGame already returns specific errors like ErrGameNotFound
 		return err
 	}
 
@@ -48,7 +47,6 @@ func (s *GameplayService) SubmitOrder(ctx context.Context, cmd SubmitOrderComman
 
 	gameMap, err := s.maps.GetMap(stored.Game.MapID)
 	if err != nil {
-		// maps.GetMap should return a specific error if the map is not found
 		return fmt.Errorf("failed to get game map %q: %w", stored.Game.MapID, err)
 	}
 
