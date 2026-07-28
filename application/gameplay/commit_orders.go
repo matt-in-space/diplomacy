@@ -37,7 +37,6 @@ func NewCommitOrdersCommand(gameID game.GameID, playerID game.PlayerID, expected
 func (s *GameplayService) CommitOrders(ctx context.Context, cmd CommitOrdersCommand) error {
 	stored, err := s.games.GetGame(ctx, cmd.GameID)
 	if err != nil {
-		// games.GetGame already returns specific errors like ErrGameNotFound
 		return err
 	}
 
@@ -47,7 +46,6 @@ func (s *GameplayService) CommitOrders(ctx context.Context, cmd CommitOrdersComm
 
 	gameMap, err := s.maps.GetMap(stored.Game.MapID)
 	if err != nil {
-		// maps.GetMap should return a specific error if the map is not found
 		return fmt.Errorf("failed to get game map %q: %w", stored.Game.MapID, err)
 	}
 

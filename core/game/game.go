@@ -121,12 +121,3 @@ func (g *Game) Clone() *Game {
 
 	return &clone
 }
-
-func (g *Game) AllOrdersSubmitted() bool {
-	for nationID := range g.Assignments {
-		if _, ok := g.CommittedOrders[nationID]; !ok {
-			return false
-		}
-	}
-	return true
-}

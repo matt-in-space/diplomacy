@@ -162,25 +162,6 @@ func TestPlayerControlsNation(t *testing.T) {
 	}
 }
 
-func TestAllOrdersSubmitted(t *testing.T) {
-	gm := loadWesternEuropeMap(t)
-	g := newWesternEuropeGame(t, gm)
-
-	if g.AllOrdersSubmitted() {
-		t.Fatal("AllOrdersSubmitted() = true before any nation commits, want false")
-	}
-
-	g.CommittedOrders["eng"] = struct{}{}
-	if g.AllOrdersSubmitted() {
-		t.Fatal("AllOrdersSubmitted() = true with one nation uncommitted, want false")
-	}
-
-	g.CommittedOrders["fra"] = struct{}{}
-	if !g.AllOrdersSubmitted() {
-		t.Fatal("AllOrdersSubmitted() = false after all nations commit, want true")
-	}
-}
-
 func TestNewGame_RejectsUnknownAssignmentNation(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 
