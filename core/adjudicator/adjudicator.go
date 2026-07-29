@@ -54,6 +54,7 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
 	ctx.pruneMisalignedOrders()
 	ctx.buildIntendedEndingPositions()
 	ctx.resolveOrders()
+	ctx.recordDislodgements()
 
 	return ctx.buildResolution(g.Turn), nil
 }
@@ -89,6 +90,7 @@ type resolutionContext struct {
 	dependencyStack []game.UnitID
 	movesByTarget   map[gamemap.ProvinceID][]game.UnitID
 	convoysByArmy   map[game.UnitID][]game.ConvoyOrder
+	dislodgedBy     map[game.UnitID]game.UnitID
 
 	// Outcomes recorded during pruning (misaligned/failed-convoy orders). The
 	// resolver merges these into the final resolution rather than overwriting them.
@@ -257,6 +259,23 @@ func (rc *resolutionContext) convoyPathExists(move game.MoveOrder, carriers []ga
 	}
 
 	return rc.gm.ConvoyPathExists(unit.ProvinceID, move.Target, via)
+}
+
+func (rc *resolutionContext) recordDislodgements() {
+	rc.dislodgedBy = make(map[game.UnitID]game.UnitID)
+
+	for victimID, unit := range rc.units {
+		if _, moving := rc.effectiveMoveOrders[victimID]; moving && rc.resolution[victimID] {
+			continue
+		}
+
+		for _, attackerID := range rc.movesByTarget[unit.ProvinceID] {
+			if attackerID != victimID && rc.resolution[attackerID] {
+				rc.dislodgedBy[victimID] = attackerID
+				break
+			}
+		}
+	}
 }
 
 func createOrderFailOutcome(order game.Order, reason ReasonCode) OrderOutcome {
