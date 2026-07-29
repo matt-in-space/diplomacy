@@ -83,6 +83,7 @@ func TestNewCommitOrdersCommand(t *testing.T) {
 
 func TestGameplayServiceCommitOrders(t *testing.T) {
 	g := repositoryTestGame("test-game")
+	g.Assignments["fra"] = "player-b"
 	games := &commitOrdersGameRepository{
 		stored: StoredGame{Game: g, Version: 0},
 	}
@@ -95,6 +96,9 @@ func TestGameplayServiceCommitOrders(t *testing.T) {
 	}
 	if games.getGameID != cmd.GameID {
 		t.Fatalf("GetGame game ID = %q, want %q", games.getGameID, cmd.GameID)
+	}
+	if games.getCalls != 2 {
+		t.Fatalf("GetGame calls = %d, want 2", games.getCalls)
 	}
 	if maps.getMapID != g.MapID {
 		t.Fatalf("GetMap map ID = %q, want %q", maps.getMapID, g.MapID)
@@ -110,6 +114,35 @@ func TestGameplayServiceCommitOrders(t *testing.T) {
 	}
 	if _, ok := games.savedGame.CommittedOrders[cmd.NationID]; !ok {
 		t.Fatalf("saved game does not contain committed nation %q", cmd.NationID)
+	}
+}
+
+func TestGameplayServiceCommitOrdersProcessesGameAfterFinalCommitment(t *testing.T) {
+	ctx := context.Background()
+	games := NewMemoryGameRepository()
+	g := repositoryTestGame("test-game")
+	if err := games.CreateGame(ctx, g); err != nil {
+		t.Fatalf("CreateGame failed: %v", err)
+	}
+	maps := NewMemoryGameMapRepository(commitOrdersTestMap())
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.CommitOrders(ctx, commitOrdersTestCommand()); err != nil {
+		t.Fatalf("CommitOrders failed: %v", err)
+	}
+
+	stored, err := games.GetGame(ctx, g.ID)
+	if err != nil {
+		t.Fatalf("GetGame failed: %v", err)
+	}
+	if stored.Version != 3 {
+		t.Fatalf("stored version = %d, want 3", stored.Version)
+	}
+	if stored.Game.Turn.Phase != game.AcceptRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", stored.Game.Turn.Phase, game.AcceptRetreats)
+	}
+	if len(stored.Game.CommittedOrders) != 0 {
+		t.Fatalf("CommittedOrders length = %d, want 0", len(stored.Game.CommittedOrders))
 	}
 }
 
@@ -181,7 +214,7 @@ func TestGameplayServiceCommitOrdersReturnsCommitError(t *testing.T) {
 	cmd.NationID = "ita"
 
 	err := service.CommitOrders(context.Background(), cmd)
-	if err == nil || !strings.Contains(err.Error(), "failed to submit order") {
+	if err == nil || !strings.Contains(err.Error(), "failed to commit orders") {
 		t.Fatalf("CommitOrders error = %v, want wrapped commit error", err)
 	}
 	if games.saveCalls != 0 {
@@ -228,6 +261,7 @@ type commitOrdersGameRepository struct {
 	getErr               error
 	saveErr              error
 	getGameID            game.GameID
+	getCalls             int
 	saveCalls            int
 	savedGame            *game.Game
 	savedExpectedVersion uint64
@@ -238,6 +272,7 @@ func (r *commitOrdersGameRepository) CreateGame(context.Context, *game.Game) err
 }
 
 func (r *commitOrdersGameRepository) GetGame(_ context.Context, gameID game.GameID) (StoredGame, error) {
+	r.getCalls++
 	r.getGameID = gameID
 	if r.getErr != nil {
 		return StoredGame{}, r.getErr

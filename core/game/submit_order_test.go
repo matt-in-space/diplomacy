@@ -70,6 +70,14 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 			want: "order nation \"ita\" not found",
 		},
 		{
+			name: "committed nation",
+			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
+				g.CommittedOrders["fra"] = struct{}{}
+				return game.NewHoldOrder("fra-army-par-start", "fra"), gm
+			},
+			want: "nation \"fra\" has already been committed",
+		},
+		{
 			name: "unknown unit",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
 				return game.NewHoldOrder("missing", "fra"), gm

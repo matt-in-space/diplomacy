@@ -50,7 +50,7 @@ func (s *GameplayService) CommitOrders(ctx context.Context, cmd CommitOrdersComm
 	}
 
 	if err := stored.Game.CommitOrders(cmd.NationID, gameMap); err != nil {
-		return fmt.Errorf("failed to submit order: %w", err)
+		return fmt.Errorf("failed to commit orders: %w", err)
 	}
 
 	_, err = s.games.SaveGame(ctx, stored.Game, cmd.ExpectedVersion)
@@ -58,5 +58,5 @@ func (s *GameplayService) CommitOrders(ctx context.Context, cmd CommitOrdersComm
 		return fmt.Errorf("failed to save game: %w", err)
 	}
 
-	return nil
+	return s.ProcessGame(ctx, stored.Game.ID)
 }

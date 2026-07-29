@@ -26,6 +26,10 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 		return fmt.Errorf("order nation %q not found", nation)
 	}
 
+	if _, ok := g.CommittedOrders[nation]; ok {
+		return fmt.Errorf("order from nation %q has already been committed", nation)
+	}
+
 	unitID := order.Unit()
 	unit, ok := g.Units[unitID]
 	if !ok {
