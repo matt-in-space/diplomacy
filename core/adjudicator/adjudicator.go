@@ -12,33 +12,7 @@ import (
 type Resolution struct {
 	Turn game.Turn
 	// Outcomes maps each UnitID to its resolution Outcome.
-	Outcomes map[game.UnitID]Outcome
-}
-
-// Outcome describes the result for a single unit after adjudication.
-type Outcome struct {
-	UnitID game.UnitID
-	Unit   game.UnitTransform
-	Order  OrderOutcome
-}
-
-type ReasonCode string
-
-const (
-	ReasonSuccess           ReasonCode = "success"
-	ReasonWeakAttack        ReasonCode = "weak_attack" // e.g., bounce, draw
-	ReasonDislodged         ReasonCode = "dislodged"
-	ReasonSupportCut        ReasonCode = "support_cut"
-	ReasonConvoyFailure     ReasonCode = "convoy_failure"
-	ReasonMisalignedSupport ReasonCode = "misaligned_support"
-	ReasonMisalignedConvoy  ReasonCode = "misaligned_convoy"
-)
-
-// OrderOutcome details whether an order succeeded and why.
-type OrderOutcome struct {
-	Order   game.Order
-	Success bool
-	Reason  ReasonCode
+	Outcomes map[game.UnitID]game.Outcome
 }
 
 // Resolve determines the outcome of all unit orders for a given turn phase.
@@ -94,7 +68,7 @@ type resolutionContext struct {
 
 	// Outcomes recorded during pruning (misaligned/failed-convoy orders). The
 	// resolver merges these into the final resolution rather than overwriting them.
-	orderOutcomes map[game.UnitID]OrderOutcome
+	orderOutcomes map[game.UnitID]game.OrderOutcome
 }
 
 func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
@@ -117,7 +91,7 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		effectiveConvoyOrders:      make(map[game.UnitID]game.ConvoyOrder),
 		state:                      make(map[game.UnitID]resolutionState),
 		resolution:                 make(map[game.UnitID]bool),
-		orderOutcomes:              make(map[game.UnitID]OrderOutcome),
+		orderOutcomes:              make(map[game.UnitID]game.OrderOutcome),
 	}
 }
 
@@ -178,7 +152,7 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 	// province.
 	for _, order := range rc.supportHoldOrders {
 		if _, ok := rc.holdOrders[order.SupportedUnit]; !ok {
-			rc.demoteToHold(order, ReasonMisalignedSupport)
+			rc.demoteToHold(order, game.ReasonMisalignedSupport)
 			continue
 		}
 		rc.effectiveSupportHoldOrders[order.UnitID] = order
@@ -189,7 +163,7 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 	for _, order := range rc.supportMoveOrders {
 		move, ok := rc.moveOrders[order.SupportedUnit]
 		if !ok || order.Target != move.Target {
-			rc.demoteToHold(order, ReasonMisalignedSupport)
+			rc.demoteToHold(order, game.ReasonMisalignedSupport)
 			continue
 		}
 		rc.effectiveSupportMoveOrders[order.UnitID] = order
@@ -202,7 +176,7 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 	for _, order := range rc.convoyOrders {
 		move, ok := rc.moveOrders[order.ConvoyedUnit]
 		if !ok || !move.ViaConvoy || move.Target != order.To {
-			rc.demoteToHold(order, ReasonMisalignedConvoy)
+			rc.demoteToHold(order, game.ReasonMisalignedConvoy)
 			continue
 		}
 		rc.effectiveConvoyOrders[order.UnitID] = order
@@ -223,20 +197,20 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 			rc.effectiveMoveOrders[id] = move
 			continue
 		}
-		rc.demoteToHold(move, ReasonConvoyFailure)
+		rc.demoteToHold(move, game.ReasonConvoyFailure)
 		for _, carrier := range carriers {
 			delete(rc.effectiveConvoyOrders, carrier.UnitID)
-			rc.demoteToHold(carrier, ReasonConvoyFailure)
+			rc.demoteToHold(carrier, game.ReasonConvoyFailure)
 		}
 	}
 }
 
 // demoteToHold records a failed outcome for an order and makes the unit hold in
 // place, so it still participates in resolution as a holder.
-func (rc *resolutionContext) demoteToHold(order game.Order, reason ReasonCode) {
+func (rc *resolutionContext) demoteToHold(order game.Order, reason game.ReasonCode) {
 	id := order.Unit()
 	rc.effectiveHoldOrders[id] = game.NewHoldOrder(id, order.Nation())
-	rc.orderOutcomes[id] = createOrderFailOutcome(order, reason)
+	rc.orderOutcomes[id] = game.CreateOrderFailOutcome(order, reason)
 }
 
 // convoyPathExists reports whether the aligned carrier fleets form an unbroken
@@ -275,21 +249,5 @@ func (rc *resolutionContext) recordDislodgements() {
 				break
 			}
 		}
-	}
-}
-
-func createOrderFailOutcome(order game.Order, reason ReasonCode) OrderOutcome {
-	return OrderOutcome{
-		Order:   order,
-		Success: false,
-		Reason:  reason,
-	}
-}
-
-func createOrderSuccessOutcome(order game.Order) OrderOutcome {
-	return OrderOutcome{
-		Order:   order,
-		Success: true,
-		Reason:  ReasonSuccess,
 	}
 }

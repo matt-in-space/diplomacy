@@ -51,7 +51,7 @@ func TestPruneMisalignedOrders_SupportHold(t *testing.T) {
 			game.NewMoveOrder("a", "fra", "bre", ""),
 			game.NewSupportHoldOrder("b", "fra", "a", "par"),
 		)
-		assertDemoted(t, rc, "b", ReasonMisalignedSupport)
+		assertDemoted(t, rc, "b", game.ReasonMisalignedSupport)
 	})
 }
 
@@ -76,7 +76,7 @@ func TestPruneMisalignedOrders_SupportMove(t *testing.T) {
 			game.NewHoldOrder("a", "fra"),
 			game.NewSupportMoveOrder("b", "fra", "a", "gas", ""),
 		)
-		assertDemoted(t, rc, "b", ReasonMisalignedSupport)
+		assertDemoted(t, rc, "b", game.ReasonMisalignedSupport)
 	})
 
 	t.Run("misaligned when supported unit moves elsewhere", func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestPruneMisalignedOrders_SupportMove(t *testing.T) {
 			game.NewMoveOrder("a", "fra", "bre", ""),
 			game.NewSupportMoveOrder("b", "fra", "a", "gas", ""),
 		)
-		assertDemoted(t, rc, "b", ReasonMisalignedSupport)
+		assertDemoted(t, rc, "b", game.ReasonMisalignedSupport)
 	})
 }
 
@@ -133,7 +133,7 @@ func TestPruneMisalignedOrders_Convoy(t *testing.T) {
 			game.NewHoldOrder("a", "fra"),
 			game.NewConvoyOrder("f", "fra", "a", "bre", "lon"),
 		)
-		assertDemoted(t, rc, "f", ReasonMisalignedConvoy)
+		assertDemoted(t, rc, "f", game.ReasonMisalignedConvoy)
 	})
 
 	t.Run("convoy misaligned when move is not via convoy", func(t *testing.T) {
@@ -142,7 +142,7 @@ func TestPruneMisalignedOrders_Convoy(t *testing.T) {
 			game.NewMoveOrder("a", "fra", "gas", ""),
 			game.NewConvoyOrder("f", "fra", "a", "bre", "lon"),
 		)
-		assertDemoted(t, rc, "f", ReasonMisalignedConvoy)
+		assertDemoted(t, rc, "f", game.ReasonMisalignedConvoy)
 	})
 
 	t.Run("convoy misaligned when destinations differ", func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestPruneMisalignedOrders_Convoy(t *testing.T) {
 			game.NewConvoyOrder("f1", "fra", "a", "bre", "lon"),
 			game.NewConvoyOrder("f2", "fra", "a", "bre", "por"),
 		)
-		assertDemoted(t, rc, "f2", ReasonMisalignedConvoy)
+		assertDemoted(t, rc, "f2", game.ReasonMisalignedConvoy)
 		if _, ok := rc.effectiveConvoyOrders["f1"]; !ok {
 			t.Fatalf("expected aligned convoy f1 to be effective")
 		}
@@ -172,7 +172,7 @@ func TestPruneMisalignedOrders_Convoy(t *testing.T) {
 			[]testUnit{tArmy("a", "fra", "bre")},
 			game.NewConvoyedMoveOrder("a", "fra", "lon"),
 		)
-		assertDemoted(t, rc, "a", ReasonConvoyFailure)
+		assertDemoted(t, rc, "a", game.ReasonConvoyFailure)
 		if _, ok := rc.effectiveMoveOrders["a"]; ok {
 			t.Fatalf("did not expect failed convoyed move to be effective")
 		}
@@ -185,8 +185,8 @@ func TestPruneMisalignedOrders_Convoy(t *testing.T) {
 			game.NewConvoyedMoveOrder("a", "fra", "por"),
 			game.NewConvoyOrder("f", "fra", "a", "lon", "por"),
 		)
-		assertDemoted(t, rc, "a", ReasonConvoyFailure)
-		assertDemoted(t, rc, "f", ReasonConvoyFailure)
+		assertDemoted(t, rc, "a", game.ReasonConvoyFailure)
+		assertDemoted(t, rc, "f", game.ReasonConvoyFailure)
 		if _, ok := rc.effectiveConvoyOrders["f"]; ok {
 			t.Fatalf("expected doomed carrier to be removed from effective convoys")
 		}
@@ -238,7 +238,7 @@ func TestPruneMisalignedOrders_Partition(t *testing.T) {
 	}
 }
 
-func assertDemoted(t *testing.T, rc resolutionContext, id game.UnitID, reason ReasonCode) {
+func assertDemoted(t *testing.T, rc resolutionContext, id game.UnitID, reason game.ReasonCode) {
 	t.Helper()
 
 	if _, ok := rc.effectiveHoldOrders[id]; !ok {

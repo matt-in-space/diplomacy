@@ -8,7 +8,7 @@ import (
 )
 
 // resolvedOutcomes runs the full pipeline and returns the final outcomes.
-func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) map[game.UnitID]Outcome {
+func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) map[game.UnitID]game.Outcome {
 	rc := newResolutionContext(newTestGame(gm, units, orders...), gm)
 	rc.normalizeOrders()
 	rc.categorizeOrders()
@@ -18,7 +18,7 @@ func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Orde
 	return rc.buildResolution(game.StartingTurn()).Outcomes
 }
 
-func wantMove(t *testing.T, o Outcome, to gamemap.ProvinceID) {
+func wantMove(t *testing.T, o game.Outcome, to gamemap.ProvinceID) {
 	t.Helper()
 	if o.Unit.Type != game.UnitTransformMove {
 		t.Errorf("unit %q: type = %q, want move", o.UnitID, o.Unit.Type)
@@ -31,7 +31,7 @@ func wantMove(t *testing.T, o Outcome, to gamemap.ProvinceID) {
 	}
 }
 
-func wantHold(t *testing.T, o Outcome, success bool, reason ReasonCode) {
+func wantHold(t *testing.T, o game.Outcome, success bool, reason game.ReasonCode) {
 	t.Helper()
 	if o.Unit.Type != game.UnitTransformHold {
 		t.Errorf("unit %q: type = %q, want hold", o.UnitID, o.Unit.Type)
@@ -44,7 +44,7 @@ func wantHold(t *testing.T, o Outcome, success bool, reason ReasonCode) {
 	}
 }
 
-func wantRetreat(t *testing.T, o Outcome) {
+func wantRetreat(t *testing.T, o game.Outcome) {
 	t.Helper()
 	if o.Unit.Type != game.UnitTransformRetreat {
 		t.Errorf("unit %q: type = %q, want retreat", o.UnitID, o.Unit.Type)
@@ -52,8 +52,8 @@ func wantRetreat(t *testing.T, o Outcome) {
 	if o.Order.Success {
 		t.Errorf("unit %q: order succeeded, want failure", o.UnitID)
 	}
-	if o.Order.Reason != ReasonDislodged {
-		t.Errorf("unit %q: reason = %q, want %q", o.UnitID, o.Order.Reason, ReasonDislodged)
+	if o.Order.Reason != game.ReasonDislodged {
+		t.Errorf("unit %q: reason = %q, want %q", o.UnitID, o.Order.Reason, game.ReasonDislodged)
 	}
 }
 
@@ -70,7 +70,7 @@ func TestResolve_ConvoySucceeds(t *testing.T) {
 	)
 
 	wantMove(t, outcomes["a"], "lon")
-	wantHold(t, outcomes["f"], true, ReasonSuccess)
+	wantHold(t, outcomes["f"], true, game.ReasonSuccess)
 }
 
 func TestResolve_ConvoyDisruptedByDislodgement(t *testing.T) {
@@ -92,10 +92,10 @@ func TestResolve_ConvoyDisruptedByDislodgement(t *testing.T) {
 		game.NewSupportMoveOrder("fbre", "eng", "feng", "mao", ""),
 	)
 
-	wantHold(t, outcomes["a"], false, ReasonConvoyFailure) // convoy broken, army holds
-	wantRetreat(t, outcomes["fmao"])                       // convoying fleet dislodged
-	wantMove(t, outcomes["feng"], "mao")                   // attacker takes the ocean
-	wantHold(t, outcomes["fbre"], true, ReasonSuccess)     // supporter
+	wantHold(t, outcomes["a"], false, game.ReasonConvoyFailure) // convoy broken, army holds
+	wantRetreat(t, outcomes["fmao"])                            // convoying fleet dislodged
+	wantMove(t, outcomes["feng"], "mao")                        // attacker takes the ocean
+	wantHold(t, outcomes["fbre"], true, game.ReasonSuccess)     // supporter
 }
 
 func TestResolve_HeadToHeadWithSupport(t *testing.T) {
@@ -114,9 +114,9 @@ func TestResolve_HeadToHeadWithSupport(t *testing.T) {
 		game.NewSupportMoveOrder("abre", "eng", "agas", "par", ""),
 	)
 
-	wantRetreat(t, outcomes["apar"])                   // dislodged by the stronger side
-	wantMove(t, outcomes["agas"], "par")               // wins the head-to-head
-	wantHold(t, outcomes["abre"], true, ReasonSuccess) // supporter
+	wantRetreat(t, outcomes["apar"])                        // dislodged by the stronger side
+	wantMove(t, outcomes["agas"], "par")                    // wins the head-to-head
+	wantHold(t, outcomes["abre"], true, game.ReasonSuccess) // supporter
 }
 
 func TestResolve_ConvoyParadox(t *testing.T) {
@@ -146,10 +146,10 @@ func TestResolve_ConvoyParadox(t *testing.T) {
 		game.NewMoveOrder("fmao", "eng", "eng", ""),
 	)
 
-	wantHold(t, outcomes["a"], false, ReasonConvoyFailure) // convoy fails (Szykman)
-	wantRetreat(t, outcomes["feng"])                       // convoying fleet dislodged
-	wantHold(t, outcomes["flon"], true, ReasonSuccess)     // support not cut
-	wantMove(t, outcomes["fmao"], "eng")                   // dislodges the convoying fleet
+	wantHold(t, outcomes["a"], false, game.ReasonConvoyFailure) // convoy fails (Szykman)
+	wantRetreat(t, outcomes["feng"])                            // convoying fleet dislodged
+	wantHold(t, outcomes["flon"], true, game.ReasonSuccess)     // support not cut
+	wantMove(t, outcomes["fmao"], "eng")                        // dislodges the convoying fleet
 }
 
 func TestResolve_CircularConvoyOfThree(t *testing.T) {

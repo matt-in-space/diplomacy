@@ -8,10 +8,10 @@ import (
 // buildResolution turns the resolved order states into the final Resolution,
 // with one outcome per unit.
 func (rc *resolutionContext) buildResolution(turn game.Turn) Resolution {
-	outcomes := make(map[game.UnitID]Outcome, len(rc.units))
+	outcomes := make(map[game.UnitID]game.Outcome, len(rc.units))
 	for id, unit := range rc.units {
 		unitOutcome, orderOutcome := rc.outcomeFor(id, unit)
-		outcomes[id] = Outcome{
+		outcomes[id] = game.Outcome{
 			UnitID: id,
 			Unit:   unitOutcome,
 			Order:  orderOutcome,
@@ -20,7 +20,7 @@ func (rc *resolutionContext) buildResolution(turn game.Turn) Resolution {
 	return Resolution{Turn: turn, Outcomes: outcomes}
 }
 
-func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.UnitTransform, OrderOutcome) {
+func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.UnitTransform, game.OrderOutcome) {
 	order := rc.allOrders[id]
 
 	if move, ok := rc.effectiveMoveOrders[id]; ok {
@@ -32,22 +32,22 @@ func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.Un
 				To:     move.Target,
 				Coast:  rc.resolveMoveCoast(unit, move),
 			}
-			return unitOutcome, createOrderSuccessOutcome(order)
+			return unitOutcome, game.CreateOrderSuccessOutcome(order)
 		}
 		if rc.isDislodged(id, unit) {
-			return rc.retreatOutcome(id, unit), createOrderFailOutcome(order, ReasonDislodged)
+			return rc.retreatOutcome(id, unit), game.CreateOrderFailOutcome(order, game.ReasonDislodged)
 		}
 		// A convoyed move whose path is no longer intact failed because its convoy
 		// broke, not because it bounced.
 		if move.ViaConvoy && !rc.path(id, move) {
-			return rc.holdOutcome(id, unit), createOrderFailOutcome(order, ReasonConvoyFailure)
+			return rc.holdOutcome(id, unit), game.CreateOrderFailOutcome(order, game.ReasonConvoyFailure)
 		}
-		return rc.holdOutcome(id, unit), createOrderFailOutcome(order, ReasonWeakAttack)
+		return rc.holdOutcome(id, unit), game.CreateOrderFailOutcome(order, game.ReasonWeakAttack)
 	}
 
 	// Non-move orders (hold, support, convoy, or a pruned order now holding).
 	if rc.isDislodged(id, unit) {
-		return rc.retreatOutcome(id, unit), createOrderFailOutcome(order, ReasonDislodged)
+		return rc.retreatOutcome(id, unit), game.CreateOrderFailOutcome(order, game.ReasonDislodged)
 	}
 
 	// Orders demoted during pruning keep the reason recorded there.
@@ -60,16 +60,16 @@ func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.Un
 
 // nonMoveOrderOutcome reports success for a hold or convoy, and for a support
 // whether it was given.
-func (rc *resolutionContext) nonMoveOrderOutcome(id game.UnitID, order game.Order) OrderOutcome {
+func (rc *resolutionContext) nonMoveOrderOutcome(id game.UnitID, order game.Order) game.OrderOutcome {
 	_, isSupportHold := rc.effectiveSupportHoldOrders[id]
 	_, isSupportMove := rc.effectiveSupportMoveOrders[id]
 	if isSupportHold || isSupportMove {
 		if rc.resolution[id] {
-			return createOrderSuccessOutcome(order)
+			return game.CreateOrderSuccessOutcome(order)
 		}
-		return createOrderFailOutcome(order, ReasonSupportCut)
+		return game.CreateOrderFailOutcome(order, game.ReasonSupportCut)
 	}
-	return createOrderSuccessOutcome(order)
+	return game.CreateOrderSuccessOutcome(order)
 }
 
 // isDislodged reports whether a unit is forced to retreat: it did not move away

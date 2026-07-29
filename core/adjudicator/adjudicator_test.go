@@ -28,7 +28,7 @@ type expectedOutcome struct {
 	to       gamemap.ProvinceID
 	// Order outcome details
 	orderSuccess bool
-	reason       adjudicator.ReasonCode
+	reason       game.ReasonCode
 }
 
 // scenario represents a test case with initial units, orders, and expected outcomes.
@@ -49,8 +49,8 @@ func TestResolve_DefaultOrders(t *testing.T) {
 				fleet("eng-f-lon", "eng", "lon", "lon"),
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", true, adjudicator.ReasonSuccess),
-				holdOutcome("eng-f-lon", "lon", true, adjudicator.ReasonSuccess),
+				holdOutcome("fra-a-par", "par", true, game.ReasonSuccess),
+				holdOutcome("eng-f-lon", "lon", true, game.ReasonSuccess),
 			},
 		},
 	})
@@ -68,7 +68,7 @@ func TestResolve_Movement(t *testing.T) {
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess),
+				moveOutcome("fra-a-par", "par", "gas", true, game.ReasonSuccess),
 			},
 		},
 		{
@@ -84,8 +84,8 @@ func TestResolve_Movement(t *testing.T) {
 			expected: []expectedOutcome{
 				// Both units attempt to move to a province occupied by the other.
 				// This results in a bounce, and they should hold their origin.
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack),
-				holdOutcome("fra-a-gas", "gas", false, adjudicator.ReasonWeakAttack),
+				holdOutcome("fra-a-par", "par", false, game.ReasonWeakAttack),
+				holdOutcome("fra-a-gas", "gas", false, game.ReasonWeakAttack),
 			},
 		},
 		{
@@ -101,9 +101,9 @@ func TestResolve_Movement(t *testing.T) {
 				game.NewMoveOrder("fra-a-gas", "fra", "par", ""),
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "bre", true, adjudicator.ReasonSuccess),
-				moveOutcome("fra-a-bre", "bre", "gas", true, adjudicator.ReasonSuccess),
-				moveOutcome("fra-a-gas", "gas", "par", true, adjudicator.ReasonSuccess),
+				moveOutcome("fra-a-par", "par", "bre", true, game.ReasonSuccess),
+				moveOutcome("fra-a-bre", "bre", "gas", true, game.ReasonSuccess),
+				moveOutcome("fra-a-gas", "gas", "par", true, game.ReasonSuccess),
 			},
 		},
 	})
@@ -124,9 +124,9 @@ func TestResolve_Strength(t *testing.T) {
 			},
 			expected: []expectedOutcome{
 				// Attacker strength (1) is not greater than defender strength (1), so attacker bounces.
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack),
+				holdOutcome("fra-a-par", "par", false, game.ReasonWeakAttack),
 				// Defender successfully holds.
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),
+				holdOutcome("eng-a-gas", "gas", true, game.ReasonSuccess),
 			},
 		},
 	})
@@ -146,8 +146,8 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportHoldOrder("fra-a-gas", "fra", "fra-a-par", "par"),
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", true, adjudicator.ReasonSuccess),
-				holdOutcome("fra-a-gas", "gas", true, adjudicator.ReasonSuccess), // Supporting order succeeds
+				holdOutcome("fra-a-par", "par", true, game.ReasonSuccess),
+				holdOutcome("fra-a-gas", "gas", true, game.ReasonSuccess), // Supporting order succeeds
 			},
 		},
 		{
@@ -161,8 +161,8 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""),
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess),
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess), // Supporting order succeeds
+				moveOutcome("fra-a-par", "par", "gas", true, game.ReasonSuccess),
+				holdOutcome("fra-a-bre", "bre", true, game.ReasonSuccess), // Supporting order succeeds
 			},
 		},
 		{
@@ -176,8 +176,8 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-gas", "par", ""), // Supports a move to 'par' instead
 			},
 			expected: []expectedOutcome{
-				moveOutcome("fra-a-gas", "gas", "spa", true, adjudicator.ReasonSuccess),     // Unit moves successfully
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonMisalignedSupport), // Support fails: supported unit moved elsewhere
+				moveOutcome("fra-a-gas", "gas", "spa", true, game.ReasonSuccess),     // Unit moves successfully
+				holdOutcome("fra-a-bre", "bre", false, game.ReasonMisalignedSupport), // Support fails: supported unit moved elsewhere
 			},
 		},
 		{
@@ -191,8 +191,8 @@ func TestResolve_Support(t *testing.T) {
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""),
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", true, adjudicator.ReasonSuccess),            // Unit holds
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonMisalignedSupport), // Support fails: supported unit did not move
+				holdOutcome("fra-a-par", "par", true, game.ReasonSuccess),            // Unit holds
+				holdOutcome("fra-a-bre", "bre", false, game.ReasonMisalignedSupport), // Support fails: supported unit did not move
 			},
 		},
 		{
@@ -211,10 +211,10 @@ func TestResolve_Support(t *testing.T) {
 			},
 			expected: []expectedOutcome{
 				// Support is cut, so the attack drops to strength 1 and bounces off the strength-1 defender.
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces
-				holdOutcome("fra-a-bre", "bre", false, adjudicator.ReasonSupportCut), // Support cut
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
-				holdOutcome("eng-f-eng", "eng", false, adjudicator.ReasonWeakAttack), // Cutter bounces off the supporter
+				holdOutcome("fra-a-par", "par", false, game.ReasonWeakAttack), // Attacker bounces
+				holdOutcome("fra-a-bre", "bre", false, game.ReasonSupportCut), // Support cut
+				holdOutcome("eng-a-gas", "gas", true, game.ReasonSuccess),     // Defender holds
+				holdOutcome("eng-f-eng", "eng", false, game.ReasonWeakAttack), // Cutter bounces off the supporter
 			},
 		},
 		{
@@ -233,10 +233,10 @@ func TestResolve_Support(t *testing.T) {
 			},
 			expected: []expectedOutcome{
 				// Own-nation attacks never cut support, so the attack keeps strength 2 and dislodges the defender.
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Attacker moves in
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Support holds (not cut)
-				retreatOutcome("eng-a-gas", "gas"),                                      // Defender dislodged
-				holdOutcome("fra-f-eng", "eng", false, adjudicator.ReasonWeakAttack),    // Own unit bounces off the supporter
+				moveOutcome("fra-a-par", "par", "gas", true, game.ReasonSuccess), // Attacker moves in
+				holdOutcome("fra-a-bre", "bre", true, game.ReasonSuccess),        // Support holds (not cut)
+				retreatOutcome("eng-a-gas", "gas"),                               // Defender dislodged
+				holdOutcome("fra-f-eng", "eng", false, game.ReasonWeakAttack),    // Own unit bounces off the supporter
 			},
 		},
 		{
@@ -256,9 +256,9 @@ func TestResolve_Support(t *testing.T) {
 				// directed into, so the support is NOT cut (a unit cannot cut the support aimed
 				// at itself). The attack keeps strength 2: the attacker on 'gas' bounces off the
 				// holding supporter in 'bre' and is then dislodged by the incoming supported unit.
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Supported unit moves in
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Support valid (not cut)
-				retreatOutcome("eng-a-gas", "gas"),                                      // Attacker bounces, then is dislodged
+				moveOutcome("fra-a-par", "par", "gas", true, game.ReasonSuccess), // Supported unit moves in
+				holdOutcome("fra-a-bre", "bre", true, game.ReasonSuccess),        // Support valid (not cut)
+				retreatOutcome("eng-a-gas", "gas"),                               // Attacker bounces, then is dislodged
 			},
 		},
 	})
@@ -283,9 +283,9 @@ func TestResolve_Dislodgement(t *testing.T) {
 				// Attacker strength becomes 2 (1 base + 1 support).
 				// Defender strength is 1.
 				// Attacker is stronger, defender is dislodged.
-				moveOutcome("fra-a-par", "par", "gas", true, adjudicator.ReasonSuccess), // Attacker moves
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),        // Support order succeeds
-				retreatOutcome("eng-a-gas", "gas"),                                      // Defender retreats
+				moveOutcome("fra-a-par", "par", "gas", true, game.ReasonSuccess), // Attacker moves
+				holdOutcome("fra-a-bre", "bre", true, game.ReasonSuccess),        // Support order succeeds
+				retreatOutcome("eng-a-gas", "gas"),                               // Defender retreats
 			},
 		},
 		{
@@ -299,8 +299,8 @@ func TestResolve_Dislodgement(t *testing.T) {
 				game.NewHoldOrder("eng-a-gas", "eng"),
 			},
 			expected: []expectedOutcome{
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
+				holdOutcome("fra-a-par", "par", false, game.ReasonWeakAttack), // Attacker bounces
+				holdOutcome("eng-a-gas", "gas", true, game.ReasonSuccess),     // Defender holds
 			},
 		},
 		{
@@ -321,10 +321,10 @@ func TestResolve_Dislodgement(t *testing.T) {
 				// Attacker strength = 1 (base) + 1 (support) = 2.
 				// Defender strength = 1 (base) + 1 (support) = 2.
 				// Attack strength equals defense strength, so attacker bounces.
-				holdOutcome("fra-a-par", "par", false, adjudicator.ReasonWeakAttack), // Attacker bounces
-				holdOutcome("fra-a-bre", "bre", true, adjudicator.ReasonSuccess),     // Support order succeeds (it applies and is not cut, but the attack it supports bounces)
-				holdOutcome("eng-a-gas", "gas", true, adjudicator.ReasonSuccess),     // Defender holds
-				holdOutcome("eng-a-spa", "spa", true, adjudicator.ReasonSuccess),     // Support order succeeds
+				holdOutcome("fra-a-par", "par", false, game.ReasonWeakAttack), // Attacker bounces
+				holdOutcome("fra-a-bre", "bre", true, game.ReasonSuccess),     // Support order succeeds (it applies and is not cut, but the attack it supports bounces)
+				holdOutcome("eng-a-gas", "gas", true, game.ReasonSuccess),     // Defender holds
+				holdOutcome("eng-a-spa", "spa", true, game.ReasonSuccess),     // Support order succeeds
 			},
 		},
 	})
@@ -478,7 +478,7 @@ func assertResolution(t *testing.T, got adjudicator.Resolution, expected []expec
 
 // moveOutcome creates an expectedOutcome for a move action.
 // 'success' and 'reason' are for the order outcome.
-func moveOutcome(unitID game.UnitID, from, to gamemap.ProvinceID, success bool, reason adjudicator.ReasonCode) expectedOutcome {
+func moveOutcome(unitID game.UnitID, from, to gamemap.ProvinceID, success bool, reason game.ReasonCode) expectedOutcome {
 	return expectedOutcome{
 		unitID:       unitID,
 		unitType:     game.UnitTransformMove,
@@ -490,7 +490,7 @@ func moveOutcome(unitID game.UnitID, from, to gamemap.ProvinceID, success bool, 
 }
 
 // holdOutcome creates an expectedOutcome for a hold action.
-func holdOutcome(unitID game.UnitID, province gamemap.ProvinceID, success bool, reason adjudicator.ReasonCode) expectedOutcome {
+func holdOutcome(unitID game.UnitID, province gamemap.ProvinceID, success bool, reason game.ReasonCode) expectedOutcome {
 	return expectedOutcome{
 		unitID:       unitID,
 		unitType:     game.UnitTransformHold,
@@ -507,10 +507,10 @@ func retreatOutcome(unitID game.UnitID, province gamemap.ProvinceID) expectedOut
 	return expectedOutcome{
 		unitID:       unitID,
 		unitType:     game.UnitTransformRetreat,
-		from:         province,                    // Province where dislodgement occurred.
-		to:           "",                          // Retreat destination is determined in the next phase.
-		orderSuccess: false,                       // The original order failed.
-		reason:       adjudicator.ReasonDislodged, // Explicitly state reason.
+		from:         province,             // Province where dislodgement occurred.
+		to:           "",                   // Retreat destination is determined in the next phase.
+		orderSuccess: false,                // The original order failed.
+		reason:       game.ReasonDislodged, // Explicitly state reason.
 	}
 }
 

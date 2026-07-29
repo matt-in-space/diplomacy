@@ -1,25 +1,5 @@
 package game
 
-import "github.com/matt-in-space/diplomacy/core/gamemap"
-
-type Order interface {
-	Unit() UnitID
-	Nation() gamemap.NationID
-}
-
-type BaseOrder struct {
-	UnitID   UnitID
-	NationID gamemap.NationID
-}
-
-func (o BaseOrder) Unit() UnitID {
-	return o.UnitID
-}
-
-func (o BaseOrder) Nation() gamemap.NationID {
-	return o.NationID
-}
-
 type ReasonCode string
 
 const (
@@ -37,4 +17,27 @@ type OrderOutcome struct {
 	Order   Order
 	Success bool
 	Reason  ReasonCode
+}
+
+// Outcome describes the result for a single unit after adjudication.
+type Outcome struct {
+	UnitID UnitID
+	Unit   UnitTransform
+	Order  OrderOutcome
+}
+
+func CreateOrderFailOutcome(order Order, reason ReasonCode) OrderOutcome {
+	return OrderOutcome{
+		Order:   order,
+		Success: false,
+		Reason:  reason,
+	}
+}
+
+func CreateOrderSuccessOutcome(order Order) OrderOutcome {
+	return OrderOutcome{
+		Order:   order,
+		Success: true,
+		Reason:  ReasonSuccess,
+	}
 }
