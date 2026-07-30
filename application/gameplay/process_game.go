@@ -51,20 +51,11 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 			return false, fmt.Errorf("failed to resolve game: %w", err)
 		}
 
-		transforms := transformsFrom(res)
-		if err := g.CompleteOrderResolution(transforms); err != nil {
+		if err := g.CompleteOrderResolution(res); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 
 	return false, nil
-}
-
-func transformsFrom(res game.Resolution) []game.UnitTransform {
-	transforms := make([]game.UnitTransform, 0, len(res.Outcomes))
-	for _, t := range res.Outcomes {
-		transforms = append(transforms, t.Unit)
-	}
-	return transforms
 }

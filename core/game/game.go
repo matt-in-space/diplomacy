@@ -21,16 +21,17 @@ type Dislodgement struct {
 }
 
 type Game struct {
-	ID              GameID
-	MapID           gamemap.MapID
-	Assignments     map[gamemap.NationID]PlayerID
-	Turn            Turn
-	Units           map[UnitID]Unit
-	Positions       map[gamemap.ProvinceID]UnitID
-	FleetCoasts     map[UnitID]gamemap.CoastID
-	Orders          map[UnitID]Order
-	CommittedOrders map[gamemap.NationID]struct{}
-	PendingRetreats map[UnitID]Dislodgement
+	ID                  GameID
+	MapID               gamemap.MapID
+	Assignments         map[gamemap.NationID]PlayerID
+	Turn                Turn
+	Units               map[UnitID]Unit
+	Positions           map[gamemap.ProvinceID]UnitID
+	FleetCoasts         map[UnitID]gamemap.CoastID
+	Orders              map[UnitID]Order
+	CommittedOrders     map[gamemap.NationID]struct{}
+	PendingRetreats     map[UnitID]Dislodgement
+	LastOrderResolution Resolution
 }
 
 func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
@@ -39,16 +40,17 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 	}
 
 	g := &Game{
-		ID:              cfg.ID,
-		MapID:           gm.ID,
-		Assignments:     make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
-		Turn:            StartingTurn(),
-		Units:           make(map[UnitID]Unit, len(gm.StartingUnits)),
-		Positions:       make(map[gamemap.ProvinceID]UnitID, len(gm.StartingUnits)),
-		FleetCoasts:     make(map[UnitID]gamemap.CoastID),
-		Orders:          make(map[UnitID]Order),
-		CommittedOrders: make(map[gamemap.NationID]struct{}),
-		PendingRetreats: make(map[UnitID]Dislodgement),
+		ID:                  cfg.ID,
+		MapID:               gm.ID,
+		Assignments:         make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
+		Turn:                StartingTurn(),
+		Units:               make(map[UnitID]Unit, len(gm.StartingUnits)),
+		Positions:           make(map[gamemap.ProvinceID]UnitID, len(gm.StartingUnits)),
+		FleetCoasts:         make(map[UnitID]gamemap.CoastID),
+		Orders:              make(map[UnitID]Order),
+		CommittedOrders:     make(map[gamemap.NationID]struct{}),
+		PendingRetreats:     make(map[UnitID]Dislodgement),
+		LastOrderResolution: Resolution{},
 	}
 
 	for nation, player := range cfg.Assignments {
