@@ -7,11 +7,7 @@ import (
 )
 
 // Resolution represents the outcome of a turn's order adjudication.
-type Resolution struct {
-	Turn Turn
-	// Outcomes maps each UnitID to its resolution Outcome.
-	Outcomes map[UnitID]Outcome
-}
+type Resolution map[UnitID]Outcome
 
 // Outcome describes the result for a single unit after adjudication.
 type Outcome struct {
@@ -82,8 +78,8 @@ func (g *Game) CompleteOrderResolution(res Resolution) error {
 		return fmt.Errorf("order resolution can only be completed in the resolve orders phase")
 	}
 
-	transforms := make([]UnitTransform, 0, len(res.Outcomes))
-	for _, t := range res.Outcomes {
+	transforms := make([]UnitTransform, 0, len(res))
+	for _, t := range res {
 		transforms = append(transforms, t.Unit)
 	}
 

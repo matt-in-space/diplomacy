@@ -425,8 +425,8 @@ func assertResolution(t *testing.T, got game.Resolution, expected []expectedOutc
 	t.Helper()
 
 	// --- Assert Resolution structure ---
-	if len(got.Outcomes) != len(expected) {
-		t.Errorf("Outcomes count = %d, want %d", len(got.Outcomes), len(expected))
+	if len(got) != len(expected) {
+		t.Errorf("Outcomes count = %d, want %d", len(got), len(expected))
 	}
 
 	// Build a map of expected outcomes for easier lookup by unitID.
@@ -437,7 +437,7 @@ func assertResolution(t *testing.T, got game.Resolution, expected []expectedOutc
 
 	// Check each outcome in the actual resolution.
 	for unitID, want := range expectedOutcomesMap {
-		gotOutcome, ok := got.Outcomes[unitID]
+		gotOutcome, ok := got[unitID]
 		if !ok {
 			t.Errorf("outcome for unit %q not found in resolution", unitID)
 			continue

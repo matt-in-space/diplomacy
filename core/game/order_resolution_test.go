@@ -104,10 +104,7 @@ func TestGameCompleteOrderResolutionPreservesLifecycleStateWhenTransformsFail(t 
 }
 
 func holdResolution(g *game.Game) game.Resolution {
-	// transforms := make([]game.UnitTransform, 0, len(g.Units))
-	res := game.Resolution{
-		Outcomes: make(map[game.UnitID]game.Outcome),
-	}
+	res := make(game.Resolution)
 
 	for id, unit := range g.Units {
 		transform := game.UnitTransform{
@@ -117,7 +114,7 @@ func holdResolution(g *game.Game) game.Resolution {
 			To:     unit.ProvinceID,
 			Coast:  g.FleetCoasts[id],
 		}
-		res.Outcomes[id] = game.Outcome{
+		res[id] = game.Outcome{
 			Unit: transform,
 		}
 	}

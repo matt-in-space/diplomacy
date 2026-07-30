@@ -23,7 +23,7 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (game.Resolution, error) {
 	ctx.resolveOrders()
 	ctx.recordDislodgements()
 
-	return ctx.buildResolution(g.Turn), nil
+	return ctx.buildResolution(), nil
 }
 
 type resolutionContext struct {

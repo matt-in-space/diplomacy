@@ -15,7 +15,7 @@ func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Orde
 	rc.pruneMisalignedOrders()
 	rc.buildIntendedEndingPositions()
 	rc.resolveOrders()
-	return rc.buildResolution(game.StartingTurn()).Outcomes
+	return rc.buildResolution()
 }
 
 func wantMove(t *testing.T, o game.Outcome, to gamemap.ProvinceID) {
