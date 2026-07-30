@@ -7,7 +7,7 @@ import (
 
 // buildResolution turns the resolved order states into the final Resolution,
 // with one outcome per unit.
-func (rc *resolutionContext) buildResolution(turn game.Turn) Resolution {
+func (rc *resolutionContext) buildResolution(turn game.Turn) game.Resolution {
 	outcomes := make(map[game.UnitID]game.Outcome, len(rc.units))
 	for id, unit := range rc.units {
 		unitOutcome, orderOutcome := rc.outcomeFor(id, unit)
@@ -17,7 +17,7 @@ func (rc *resolutionContext) buildResolution(turn game.Turn) Resolution {
 			Order:  orderOutcome,
 		}
 	}
-	return Resolution{Turn: turn, Outcomes: outcomes}
+	return game.Resolution{Turn: turn, Outcomes: outcomes}
 }
 
 func (rc *resolutionContext) outcomeFor(id game.UnitID, unit game.Unit) (game.UnitTransform, game.OrderOutcome) {

@@ -8,17 +8,10 @@ import (
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
-// Resolution represents the outcome of a turn's order adjudication.
-type Resolution struct {
-	Turn game.Turn
-	// Outcomes maps each UnitID to its resolution Outcome.
-	Outcomes map[game.UnitID]game.Outcome
-}
-
 // Resolve determines the outcome of all unit orders for a given turn phase.
-func Resolve(g *game.Game, gm *gamemap.GameMap) (Resolution, error) {
+func Resolve(g *game.Game, gm *gamemap.GameMap) (game.Resolution, error) {
 	if g.MapID != gm.ID {
-		return Resolution{}, errors.New("unexpected game map provided")
+		return game.Resolution{}, errors.New("unexpected game map provided")
 	}
 
 	ctx := newResolutionContext(g, gm)

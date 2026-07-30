@@ -61,7 +61,7 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 	return false, nil
 }
 
-func transformsFrom(res adjudicator.Resolution) []game.UnitTransform {
+func transformsFrom(res game.Resolution) []game.UnitTransform {
 	transforms := make([]game.UnitTransform, 0, len(res.Outcomes))
 	for _, t := range res.Outcomes {
 		transforms = append(transforms, t.Unit)

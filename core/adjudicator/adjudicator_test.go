@@ -421,7 +421,7 @@ func submitOrders(t *testing.T, g *game.Game, gm *gamemap.GameMap, orders ...gam
 }
 
 // assertResolution verifies the adjudication result against expected outcomes.
-func assertResolution(t *testing.T, got adjudicator.Resolution, expected []expectedOutcome) {
+func assertResolution(t *testing.T, got game.Resolution, expected []expectedOutcome) {
 	t.Helper()
 
 	// --- Assert Resolution structure ---

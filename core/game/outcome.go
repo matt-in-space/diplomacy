@@ -1,5 +1,12 @@
 package game
 
+// Resolution represents the outcome of a turn's order adjudication.
+type Resolution struct {
+	Turn Turn
+	// Outcomes maps each UnitID to its resolution Outcome.
+	Outcomes map[UnitID]Outcome
+}
+
 type ReasonCode string
 
 const (

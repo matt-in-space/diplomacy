@@ -19,22 +19,3 @@ func (o BaseOrder) Unit() UnitID {
 func (o BaseOrder) Nation() gamemap.NationID {
 	return o.NationID
 }
-
-type ReasonCode string
-
-const (
-	ReasonSuccess           ReasonCode = "success"
-	ReasonWeakAttack        ReasonCode = "weak_attack" // e.g., bounce, draw
-	ReasonDislodged         ReasonCode = "dislodged"
-	ReasonSupportCut        ReasonCode = "support_cut"
-	ReasonConvoyFailure     ReasonCode = "convoy_failure"
-	ReasonMisalignedSupport ReasonCode = "misaligned_support"
-	ReasonMisalignedConvoy  ReasonCode = "misaligned_convoy"
-)
-
-// OrderOutcome details whether an order succeeded and why.
-type OrderOutcome struct {
-	Order   Order
-	Success bool
-	Reason  ReasonCode
-}
