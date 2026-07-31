@@ -1,6 +1,8 @@
 package adjudicator
 
 import (
+	"slices"
+
 	"github.com/matt-in-space/diplomacy/core/game"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
@@ -168,10 +170,5 @@ func (rc *resolutionContext) backupRule(cycle []game.UnitID) {
 }
 
 func containsUnit(units []game.UnitID, target game.UnitID) bool {
-	for _, id := range units {
-		if id == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(units, target)
 }

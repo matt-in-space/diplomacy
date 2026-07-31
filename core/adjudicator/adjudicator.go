@@ -52,7 +52,8 @@ type resolutionContext struct {
 	effectiveConvoyOrders      map[game.UnitID]game.ConvoyOrder
 
 	// Resolver state (Kruijswijk recursive backtracking).
-	state           map[game.UnitID]resolutionState
+	state map[game.UnitID]resolutionState
+	// Records if a unit's order has been resolved successfully.
 	resolution      map[game.UnitID]bool
 	dependencyStack []game.UnitID
 	movesByTarget   map[gamemap.ProvinceID][]game.UnitID
