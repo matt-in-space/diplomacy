@@ -61,7 +61,7 @@ func TestGameSubmitOrder_RejectsInvalidConvoyOrders(t *testing.T) {
 			setup: func(g *game.Game) {
 				addFleet(t, g, "fra-fleet-mao-test", "fra", "mao", "mao")
 				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
-				delete(g.Positions, "gas")
+				dislodge(t, g, "eng-army-gas-test")
 			},
 			order: game.NewConvoyOrder("fra-fleet-mao-test", "fra", "eng-army-gas-test", "gas", "lon"),
 			want:  "is not on the board",

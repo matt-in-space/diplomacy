@@ -19,16 +19,10 @@ func repositoryTestGame(id game.GameID) *game.Game {
 				NationID:   "eng",
 				ProvinceID: "lon",
 				Type:       game.UnitTypeFleet,
+				Coast:      "lon",
 			},
-		},
-		Positions: map[gamemap.ProvinceID]game.UnitID{
-			"lon": "unit-a",
-		},
-		FleetCoasts: map[game.UnitID]gamemap.CoastID{
-			"unit-a": "lon",
 		},
 		Orders:          make(map[game.UnitID]game.Order),
 		CommittedOrders: make(map[gamemap.NationID]struct{}),
-		PendingRetreats: make(map[game.UnitID]game.Dislodgement),
 	}
 }

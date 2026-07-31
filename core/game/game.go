@@ -15,22 +15,14 @@ type NewGameConfig struct {
 	Assignments map[gamemap.NationID]PlayerID
 }
 
-type Dislodgement struct {
-	From  gamemap.ProvinceID
-	Coast gamemap.CoastID
-}
-
 type Game struct {
 	ID                  GameID
 	MapID               gamemap.MapID
 	Assignments         map[gamemap.NationID]PlayerID
 	Turn                Turn
 	Units               map[UnitID]Unit
-	Positions           map[gamemap.ProvinceID]UnitID
-	FleetCoasts         map[UnitID]gamemap.CoastID
 	Orders              map[UnitID]Order
 	CommittedOrders     map[gamemap.NationID]struct{}
-	PendingRetreats     map[UnitID]Dislodgement
 	LastOrderResolution Resolution
 }
 
@@ -45,11 +37,8 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		Assignments:         make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
 		Turn:                StartingTurn(),
 		Units:               make(map[UnitID]Unit, len(gm.StartingUnits)),
-		Positions:           make(map[gamemap.ProvinceID]UnitID, len(gm.StartingUnits)),
-		FleetCoasts:         make(map[UnitID]gamemap.CoastID),
 		Orders:              make(map[UnitID]Order),
 		CommittedOrders:     make(map[gamemap.NationID]struct{}),
-		PendingRetreats:     make(map[UnitID]Dislodgement),
 		LastOrderResolution: Resolution{},
 	}
 
@@ -60,6 +49,7 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		g.Assignments[nation] = player
 	}
 
+	seen := make(map[gamemap.ProvinceID]struct{}, len(gm.StartingUnits))
 	for _, startingUnit := range gm.StartingUnits {
 		unitType, err := unitTypeFromStartingUnit(startingUnit.Type)
 		if err != nil {
@@ -70,20 +60,21 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		if _, ok := g.Units[unitID]; ok {
 			return nil, fmt.Errorf("duplicate unit %q", unitID)
 		}
-		if _, ok := g.Positions[startingUnit.Province]; ok {
+		if _, ok := seen[startingUnit.Province]; ok {
 			return nil, fmt.Errorf("province %q already occupied", startingUnit.Province)
 		}
+		seen[startingUnit.Province] = struct{}{}
 
-		g.Units[unitID] = Unit{
+		unit := Unit{
 			ID:         unitID,
 			NationID:   startingUnit.Nation,
 			ProvinceID: startingUnit.Province,
 			Type:       unitType,
 		}
-		g.Positions[startingUnit.Province] = unitID
 		if unitType == UnitTypeFleet {
-			g.FleetCoasts[unitID] = startingUnit.Coast
+			unit.Coast = startingUnit.Coast
 		}
+		g.Units[unitID] = unit
 	}
 
 	return g, nil
@@ -115,11 +106,8 @@ func (g *Game) Clone() *Game {
 	clone := *g
 	clone.Assignments = maps.Clone(g.Assignments)
 	clone.Units = maps.Clone(g.Units)
-	clone.Positions = maps.Clone(g.Positions)
-	clone.FleetCoasts = maps.Clone(g.FleetCoasts)
 	clone.Orders = maps.Clone(g.Orders)
 	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
-	clone.PendingRetreats = maps.Clone(g.PendingRetreats)
 
 	return &clone
 }

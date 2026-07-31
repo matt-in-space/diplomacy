@@ -94,7 +94,7 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 		{
 			name: "unit not on board",
 			edit: func(g *game.Game, gm *gamemap.GameMap) (game.Order, *gamemap.GameMap) {
-				delete(g.Positions, "par")
+				dislodge(t, g, "fra-army-par-start")
 				return game.NewHoldOrder("fra-army-par-start", "fra"), gm
 			},
 			want: "is not on the board",

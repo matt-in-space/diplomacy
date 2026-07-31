@@ -87,7 +87,7 @@ func (rc *resolutionContext) holdOutcome(id game.UnitID, unit game.Unit) game.Un
 		Type:   game.UnitTransformHold,
 		From:   unit.ProvinceID,
 		To:     unit.ProvinceID,
-		Coast:  rc.fleetCoasts[id],
+		Coast:  unit.Coast,
 	}
 }
 
@@ -97,7 +97,7 @@ func (rc *resolutionContext) retreatOutcome(id game.UnitID, unit game.Unit) game
 		Type:   game.UnitTransformRetreat,
 		From:   unit.ProvinceID,
 		To:     "",
-		Coast:  rc.fleetCoasts[id],
+		Coast:  unit.Coast,
 	}
 }
 

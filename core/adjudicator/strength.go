@@ -105,7 +105,7 @@ func (rc *resolutionContext) path(u game.UnitID, move game.MoveOrder) bool {
 	var via []gamemap.CoastID
 	for _, convoy := range rc.convoysByArmy[u] {
 		if rc.resolve(convoy.UnitID) {
-			via = append(via, rc.fleetCoasts[convoy.UnitID])
+			via = append(via, rc.units[convoy.UnitID].Coast)
 		}
 	}
 	return rc.gm.ConvoyPathExists(rc.units[u].ProvinceID, move.Target, via)

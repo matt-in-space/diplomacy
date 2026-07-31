@@ -29,19 +29,17 @@ func tFleet(id game.UnitID, nation gamemap.NationID, province gamemap.ProvinceID
 // SubmitOrder validation so stage tests can construct arbitrary board states.
 func newTestGame(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) *game.Game {
 	g := &game.Game{
-		MapID:       gm.ID,
-		Units:       make(map[game.UnitID]game.Unit, len(units)),
-		Positions:   make(map[gamemap.ProvinceID]game.UnitID, len(units)),
-		FleetCoasts: make(map[game.UnitID]gamemap.CoastID),
-		Orders:      make(map[game.UnitID]game.Order, len(orders)),
+		MapID:  gm.ID,
+		Units:  make(map[game.UnitID]game.Unit, len(units)),
+		Orders: make(map[game.UnitID]game.Order, len(orders)),
 	}
 
 	for _, u := range units {
-		g.Units[u.id] = game.Unit{ID: u.id, NationID: u.nation, ProvinceID: u.province, Type: u.kind}
-		g.Positions[u.province] = u.id
+		unit := game.Unit{ID: u.id, NationID: u.nation, ProvinceID: u.province, Type: u.kind}
 		if u.kind == game.UnitTypeFleet {
-			g.FleetCoasts[u.id] = u.coast
+			unit.Coast = u.coast
 		}
+		g.Units[u.id] = unit
 	}
 
 	for _, o := range orders {

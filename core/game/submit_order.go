@@ -38,7 +38,7 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 	if unit.NationID != nation {
 		return fmt.Errorf("unit %q belongs to nation %q, not %q", unitID, unit.NationID, nation)
 	}
-	if occupyingUnit, ok := g.Positions[unit.ProvinceID]; !ok || occupyingUnit != unitID {
+	if unit.Dislodged() {
 		return fmt.Errorf("unit %q is not on the board", unitID)
 	}
 

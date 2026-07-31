@@ -29,7 +29,6 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (game.Resolution, error) {
 type resolutionContext struct {
 	gm                *gamemap.GameMap
 	units             map[game.UnitID]game.Unit
-	fleetCoasts       map[game.UnitID]gamemap.CoastID
 	currentPositions  map[gamemap.ProvinceID]game.UnitID
 	intendedPositions map[gamemap.ProvinceID][]game.UnitID
 
@@ -66,11 +65,11 @@ type resolutionContext struct {
 }
 
 func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
+	units := maps.Clone(g.Units)
 	return resolutionContext{
 		gm:                         gm,
-		units:                      maps.Clone(g.Units),
-		fleetCoasts:                maps.Clone(g.FleetCoasts),
-		currentPositions:           maps.Clone(g.Positions),
+		units:                      units,
+		currentPositions:           positionIndex(units),
 		intendedPositions:          make(map[gamemap.ProvinceID][]game.UnitID),
 		allOrders:                  maps.Clone(g.Orders),
 		moveOrders:                 make(map[game.UnitID]game.MoveOrder),
@@ -87,6 +86,18 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		resolution:                 make(map[game.UnitID]bool),
 		orderOutcomes:              make(map[game.UnitID]game.OrderOutcome),
 	}
+}
+
+// positionIndex builds a province-to-occupant lookup from a unit map. Units
+// without a province (dislodged, awaiting retreat) are excluded.
+func positionIndex(units map[game.UnitID]game.Unit) map[gamemap.ProvinceID]game.UnitID {
+	positions := make(map[gamemap.ProvinceID]game.UnitID, len(units))
+	for id, unit := range units {
+		if unit.ProvinceID != "" {
+			positions[unit.ProvinceID] = id
+		}
+	}
+	return positions
 }
 
 func (rc *resolutionContext) normalizeOrders() {
@@ -223,7 +234,7 @@ func (rc *resolutionContext) convoyPathExists(move game.MoveOrder, carriers []ga
 
 	via := make([]gamemap.CoastID, 0, len(carriers))
 	for _, carrier := range carriers {
-		via = append(via, rc.fleetCoasts[carrier.UnitID])
+		via = append(via, rc.units[carrier.UnitID].Coast)
 	}
 
 	return rc.gm.ConvoyPathExists(unit.ProvinceID, move.Target, via)

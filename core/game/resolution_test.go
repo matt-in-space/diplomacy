@@ -112,7 +112,7 @@ func holdResolution(g *game.Game) game.Resolution {
 			Type:   game.UnitTransformHold,
 			From:   unit.ProvinceID,
 			To:     unit.ProvinceID,
-			Coast:  g.FleetCoasts[id],
+			Coast:  unit.Coast,
 		}
 		res[id] = game.Outcome{
 			Unit: transform,

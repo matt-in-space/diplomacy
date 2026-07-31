@@ -52,11 +52,7 @@ func (g *Game) validateSupportHoldOrder(order SupportHoldOrder, unit Unit, gm *g
 
 	targetCoast := gamemap.CoastID("")
 	if unit.Type == UnitTypeFleet && supportedUnit.Type == UnitTypeFleet {
-		coast, ok := g.FleetCoasts[supportedUnit.ID]
-		if !ok {
-			return fmt.Errorf("supported fleet unit %q has no coast", supportedUnit.ID)
-		}
-		targetCoast = coast
+		targetCoast = supportedUnit.Coast
 	}
 
 	return g.validateUnitCanReach(unit, supportedUnit.ProvinceID, targetCoast, gm)
@@ -119,10 +115,7 @@ func (g *Game) validateFleetCanReach(unit Unit, target gamemap.Province, targetC
 		return fmt.Errorf("fleet cannot move to inland province %q", target.ID)
 	}
 
-	sourceCoast, ok := g.FleetCoasts[unit.ID]
-	if !ok {
-		return fmt.Errorf("fleet unit %q has no source coast", unit.ID)
-	}
+	sourceCoast := unit.Coast
 
 	targetCoast, err := resolveFleetTargetCoast(targetCoastID, target)
 	if err != nil {
@@ -147,7 +140,7 @@ func (g *Game) validateSupportOrderContext(unitID UnitID, supportedUnitID UnitID
 	if !ok {
 		return Unit{}, fmt.Errorf("supported unit %q not found", supportedUnitID)
 	}
-	if occupyingUnit, ok := g.Positions[supportedUnit.ProvinceID]; !ok || occupyingUnit != supportedUnitID {
+	if supportedUnit.Dislodged() {
 		return Unit{}, fmt.Errorf("supported unit %q is not on the board", supportedUnitID)
 	}
 

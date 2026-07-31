@@ -71,7 +71,7 @@ func (g *Game) validateConvoyedUnit(unitID UnitID) (Unit, error) {
 	if unit.Type != UnitTypeArmy {
 		return Unit{}, fmt.Errorf("convoyed unit %q must be an army", unitID)
 	}
-	if occupyingUnit, ok := g.Positions[unit.ProvinceID]; !ok || occupyingUnit != unitID {
+	if unit.Dislodged() {
 		return Unit{}, fmt.Errorf("convoyed unit %q is not on the board", unitID)
 	}
 

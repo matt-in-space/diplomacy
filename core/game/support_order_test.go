@@ -62,7 +62,7 @@ func TestGameSubmitOrder_RejectsInvalidSupportOrders(t *testing.T) {
 		{
 			name: "supported unit not on board",
 			setup: func(g *game.Game) {
-				delete(g.Positions, "bre")
+				dislodge(t, g, "fra-fleet-bre-start")
 			},
 			order: game.NewSupportHoldOrder("fra-army-par-start", "fra", "fra-fleet-bre-start", "bre"),
 			want:  "supported unit \"fra-fleet-bre-start\" is not on the board",

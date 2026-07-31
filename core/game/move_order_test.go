@@ -173,14 +173,6 @@ func TestGameSubmitOrder_RejectsInvalidMoveOrders(t *testing.T) {
 			want:  "fleet cannot move to inland province",
 		},
 		{
-			name: "fleet missing source coast",
-			setup: func(g *game.Game) {
-				delete(g.FleetCoasts, "fra-fleet-bre-start")
-			},
-			order: game.NewMoveOrder("fra-fleet-bre-start", "fra", "mao", ""),
-			want:  "has no source coast",
-		},
-		{
 			name: "fleet missing bicoastal target coast",
 			setup: func(g *game.Game) {
 				addFleet(t, g, "fra-fleet-mao-test", "fra", "mao", "mao")

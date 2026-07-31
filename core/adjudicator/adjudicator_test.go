@@ -378,28 +378,28 @@ func newScenarioGame(t *testing.T, gm *gamemap.GameMap, units []unitSpec) *game.
 	// Manually populate game state for the scenario.
 	// Clear any default units that might be created by NewGame (unlikely with the config used, but good practice).
 	g.Units = make(map[game.UnitID]game.Unit, len(units))
-	g.Positions = make(map[gamemap.ProvinceID]game.UnitID, len(units))
-	g.FleetCoasts = make(map[game.UnitID]gamemap.CoastID)
 	g.Orders = make(map[game.UnitID]game.Order) // Ensure orders map is empty for scenario
 
+	occupied := make(map[gamemap.ProvinceID]struct{}, len(units))
 	for _, spec := range units {
 		if _, exists := g.Units[spec.id]; exists {
 			t.Fatalf("duplicate unit ID %q", spec.id)
 		}
-		if _, exists := g.Positions[spec.province]; exists {
+		if _, exists := occupied[spec.province]; exists {
 			t.Fatalf("province %q occupied by two units", spec.province)
 		}
+		occupied[spec.province] = struct{}{}
 
-		g.Units[spec.id] = game.Unit{
+		unit := game.Unit{
 			ID:         spec.id,
 			NationID:   spec.nation,
 			ProvinceID: spec.province,
 			Type:       spec.kind,
 		}
-		g.Positions[spec.province] = spec.id
 		if spec.kind == game.UnitTypeFleet {
-			g.FleetCoasts[spec.id] = spec.coast
+			unit.Coast = spec.coast
 		}
+		g.Units[spec.id] = unit
 	}
 
 	// Leave the game in the AcceptOrders phase so the scenario's orders can be

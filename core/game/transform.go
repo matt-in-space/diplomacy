@@ -29,9 +29,6 @@ func (g *Game) ApplyUnitTransforms(results []UnitTransform) error {
 	}
 
 	units := make(map[UnitID]Unit, len(results))
-	positions := make(map[gamemap.ProvinceID]UnitID, len(results))
-	fleetCoasts := make(map[UnitID]gamemap.CoastID)
-	pendingRetreats := make(map[UnitID]Dislodgement)
 
 	for _, result := range results {
 		unit := g.Units[result.UnitID]
@@ -39,25 +36,20 @@ func (g *Game) ApplyUnitTransforms(results []UnitTransform) error {
 		switch result.Type {
 		case UnitTransformMove, UnitTransformHold:
 			unit.ProvinceID = result.To
-			positions[result.To] = unit.ID
+			unit.DislodgedFrom = ""
 			if unit.Type == UnitTypeFleet {
-				fleetCoasts[unit.ID] = result.Coast
+				unit.Coast = result.Coast
 			}
 		case UnitTransformRetreat:
 			unit.ProvinceID = ""
-			pendingRetreats[unit.ID] = Dislodgement{
-				From:  result.From,
-				Coast: result.Coast,
-			}
+			unit.DislodgedFrom = result.From
+			unit.Coast = result.Coast
 		}
 
 		units[unit.ID] = unit
 	}
 
 	g.Units = units
-	g.Positions = positions
-	g.FleetCoasts = fleetCoasts
-	g.PendingRetreats = pendingRetreats
 
 	return nil
 }
@@ -82,9 +74,6 @@ func (g *Game) validateUnitTransforms(results []UnitTransform) error {
 		}
 		if result.From != unit.ProvinceID {
 			return fmt.Errorf("unit %q is in province %q, not %q", result.UnitID, unit.ProvinceID, result.From)
-		}
-		if occupant, ok := g.Positions[result.From]; !ok || occupant != result.UnitID {
-			return fmt.Errorf("province %q is not occupied by unit %q", result.From, result.UnitID)
 		}
 
 		switch result.Type {

@@ -32,9 +32,6 @@ func TestApplyUnitTransformsMovesUnit(t *testing.T) {
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if got := g.Positions["b"]; got != "unit-a" {
-		t.Fatalf("Positions[b] = %q, want unit-a", got)
-	}
 	if got := g.Units["unit-a"].ProvinceID; got != "b" {
 		t.Fatalf("unit-a ProvinceID = %q, want b", got)
 	}
@@ -50,9 +47,6 @@ func TestApplyUnitTransformsHoldsUnitInPlace(t *testing.T) {
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if got := g.Positions["a"]; got != "unit-a" {
-		t.Fatalf("Positions[a] = %q, want unit-a", got)
-	}
 	if got := g.Units["unit-a"].ProvinceID; got != "a" {
 		t.Fatalf("unit-a ProvinceID = %q, want a", got)
 	}
@@ -68,8 +62,8 @@ func TestApplyUnitTransformsRemovesPreviousPosition(t *testing.T) {
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if unitID, ok := g.Positions["a"]; ok {
-		t.Fatalf("Positions[a] = %q, want province to be unoccupied", unitID)
+	if got := g.Units["unit-a"].ProvinceID; got == "a" {
+		t.Fatal("unit-a still occupies its previous province")
 	}
 }
 
@@ -87,11 +81,11 @@ func TestApplyUnitTransformsDoesNotRemoveUnitThatMovedIntoPreviousPosition(t *te
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if got := g.Positions["a"]; got != "unit-b" {
-		t.Fatalf("Positions[a] = %q, want unit-b", got)
+	if got := g.Units["unit-b"].ProvinceID; got != "a" {
+		t.Fatalf("unit-b ProvinceID = %q, want a", got)
 	}
-	if got := g.Positions["c"]; got != "unit-a" {
-		t.Fatalf("Positions[c] = %q, want unit-a", got)
+	if got := g.Units["unit-a"].ProvinceID; got != "c" {
+		t.Fatalf("unit-a ProvinceID = %q, want c", got)
 	}
 }
 
@@ -105,23 +99,23 @@ func TestApplyUnitTransformsAddsRetreat(t *testing.T) {
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if unitID, ok := g.Positions["a"]; ok {
-		t.Fatalf("Positions[a] = %q, want province to be unoccupied", unitID)
+	got := g.Units["unit-a"]
+	if got.ProvinceID != "" {
+		t.Fatalf("unit-a ProvinceID = %q, want empty", got.ProvinceID)
 	}
-	got, ok := g.PendingRetreats["unit-a"]
-	if !ok {
-		t.Fatal("PendingRetreats does not contain unit-a")
+	if !got.Dislodged() {
+		t.Fatal("unit-a is not marked dislodged")
 	}
-	if got.From != "a" {
-		t.Fatalf("PendingRetreats[unit-a].From = %q, want a", got.From)
+	if got.DislodgedFrom != "a" {
+		t.Fatalf("unit-a DislodgedFrom = %q, want a", got.DislodgedFrom)
 	}
 }
 
 func TestApplyUnitTransformsPreservesRetreatingFleetCoast(t *testing.T) {
 	fleet := testUnit("fleet-a", "spa")
 	fleet.Type = UnitTypeFleet
+	fleet.Coast = "spa-nc"
 	g := newTransformTestGame(fleet)
-	g.FleetCoasts[fleet.ID] = "spa-nc"
 
 	err := g.ApplyUnitTransforms([]UnitTransform{
 		{UnitID: fleet.ID, Type: UnitTransformRetreat, From: "spa", Coast: "spa-nc"},
@@ -130,11 +124,12 @@ func TestApplyUnitTransformsPreservesRetreatingFleetCoast(t *testing.T) {
 		t.Fatalf("ApplyUnitTransforms failed: %v", err)
 	}
 
-	if got := g.PendingRetreats[fleet.ID].Coast; got != "spa-nc" {
-		t.Fatalf("PendingRetreats[fleet-a].Coast = %q, want spa-nc", got)
+	got := g.Units[fleet.ID]
+	if got.Coast != "spa-nc" {
+		t.Fatalf("fleet-a Coast = %q, want spa-nc", got.Coast)
 	}
-	if _, ok := g.FleetCoasts[fleet.ID]; ok {
-		t.Fatal("FleetCoasts still contains retreating fleet")
+	if got.DislodgedFrom != "spa" {
+		t.Fatalf("fleet-a DislodgedFrom = %q, want spa", got.DislodgedFrom)
 	}
 }
 
@@ -152,14 +147,8 @@ func TestApplyUnitTransformsValidatesBeforeChangingGame(t *testing.T) {
 		t.Fatal("expected ApplyUnitTransforms to reject incorrect origin")
 	}
 
-	if got := g.Positions["a"]; got != "unit-a" {
-		t.Fatalf("Positions[a] = %q, want unit-a", got)
-	}
 	if got := g.Units["unit-a"].ProvinceID; got != "a" {
 		t.Fatalf("unit-a ProvinceID = %q, want a", got)
-	}
-	if _, ok := g.Positions["c"]; ok {
-		t.Fatal("Positions contains destination from partially applied transform")
 	}
 }
 
@@ -192,44 +181,6 @@ func TestApplyUnitTransformsRequiresResultForEveryUnit(t *testing.T) {
 	}
 }
 
-func TestApplyUnitTransformsRebuildsPositionAndCoastMaps(t *testing.T) {
-	army := testUnit("army-a", "a")
-	fleet := testUnit("fleet-a", "b")
-	fleet.Type = UnitTypeFleet
-	g := newTransformTestGame(army, fleet)
-	g.Positions["stale"] = "missing-unit"
-	g.FleetCoasts[fleet.ID] = "old-coast"
-	g.FleetCoasts["missing-unit"] = "stale-coast"
-	g.PendingRetreats["missing-unit"] = Dislodgement{From: "stale"}
-
-	err := g.ApplyUnitTransforms([]UnitTransform{
-		{UnitID: army.ID, Type: UnitTransformMove, From: "a", To: "c"},
-		{UnitID: fleet.ID, Type: UnitTransformHold, From: "b", To: "b", Coast: "new-coast"},
-	})
-	if err != nil {
-		t.Fatalf("ApplyUnitTransforms failed: %v", err)
-	}
-
-	if len(g.Positions) != 2 {
-		t.Fatalf("Positions length = %d, want 2", len(g.Positions))
-	}
-	if got := g.Positions["c"]; got != army.ID {
-		t.Fatalf("Positions[c] = %q, want %q", got, army.ID)
-	}
-	if got := g.Positions["b"]; got != fleet.ID {
-		t.Fatalf("Positions[b] = %q, want %q", got, fleet.ID)
-	}
-	if len(g.FleetCoasts) != 1 {
-		t.Fatalf("FleetCoasts length = %d, want 1", len(g.FleetCoasts))
-	}
-	if got := g.FleetCoasts[fleet.ID]; got != "new-coast" {
-		t.Fatalf("FleetCoasts[fleet-a] = %q, want new-coast", got)
-	}
-	if len(g.PendingRetreats) != 0 {
-		t.Fatalf("PendingRetreats length = %d, want 0", len(g.PendingRetreats))
-	}
-}
-
 func TestApplyUnitTransformsRejectsUnknownType(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
@@ -243,14 +194,10 @@ func TestApplyUnitTransformsRejectsUnknownType(t *testing.T) {
 
 func newTransformTestGame(units ...Unit) *Game {
 	g := &Game{
-		Units:           make(map[UnitID]Unit, len(units)),
-		Positions:       make(map[gamemap.ProvinceID]UnitID, len(units)),
-		FleetCoasts:     make(map[UnitID]gamemap.CoastID),
-		PendingRetreats: make(map[UnitID]Dislodgement),
+		Units: make(map[UnitID]Unit, len(units)),
 	}
 	for _, unit := range units {
 		g.Units[unit.ID] = unit
-		g.Positions[unit.ProvinceID] = unit.ID
 	}
 	return g
 }

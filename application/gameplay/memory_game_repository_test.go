@@ -157,7 +157,7 @@ func TestMemoryGameRepositoryStoresDetachedSnapshots(t *testing.T) {
 	}
 
 	stored.Game.Turn.Year = 8
-	stored.Game.Positions["lon"] = "changed-unit"
+	stored.Game.Units["unit-a"] = game.Unit{ID: "unit-a", ProvinceID: "changed-again"}
 	again, err := repo.GetGame(ctx, g.ID)
 	if err != nil {
 		t.Fatalf("second Get failed: %v", err)
@@ -165,8 +165,8 @@ func TestMemoryGameRepositoryStoresDetachedSnapshots(t *testing.T) {
 	if again.Game.Turn.Year != 1 {
 		t.Fatalf("Turn.Year after fetched snapshot mutation = %d, want 1", again.Game.Turn.Year)
 	}
-	if got := again.Game.Positions["lon"]; got != "unit-a" {
-		t.Fatalf("Positions[lon] after fetched snapshot mutation = %q, want unit-a", got)
+	if got := again.Game.Units["unit-a"].ProvinceID; got != "lon" {
+		t.Fatalf("unit province after fetched snapshot mutation = %q, want lon", got)
 	}
 }
 

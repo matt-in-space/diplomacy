@@ -30,7 +30,6 @@ func addArmy(t *testing.T, g *game.Game, id game.UnitID, nation gamemap.NationID
 		ProvinceID: province,
 		Type:       game.UnitTypeArmy,
 	}
-	g.Positions[province] = id
 }
 
 func addFleet(t *testing.T, g *game.Game, id game.UnitID, nation gamemap.NationID, province gamemap.ProvinceID, coast gamemap.CoastID) {
@@ -41,9 +40,22 @@ func addFleet(t *testing.T, g *game.Game, id game.UnitID, nation gamemap.NationI
 		NationID:   nation,
 		ProvinceID: province,
 		Type:       game.UnitTypeFleet,
+		Coast:      coast,
 	}
-	g.Positions[province] = id
-	g.FleetCoasts[id] = coast
+}
+
+// dislodge marks an on-board unit as dislodged, clearing its province and
+// recording where it was dislodged from.
+func dislodge(t *testing.T, g *game.Game, id game.UnitID) {
+	t.Helper()
+
+	unit, ok := g.Units[id]
+	if !ok {
+		t.Fatalf("unit %q not found", id)
+	}
+	unit.DislodgedFrom = unit.ProvinceID
+	unit.ProvinceID = ""
+	g.Units[id] = unit
 }
 
 func assertUnit(t *testing.T, g *game.Game, id game.UnitID, want game.Unit) {
