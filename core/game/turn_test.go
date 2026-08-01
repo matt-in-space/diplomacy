@@ -29,8 +29,13 @@ func TestTurnNext(t *testing.T) {
 			want: Turn{Season: Fall, Phase: AcceptOrders, Year: 1},
 		},
 		{
-			name: "fall resolve retreats advances to accept adjustments",
+			name: "fall resolve retreats advances to update ownership",
 			turn: Turn{Season: Fall, Phase: ResolveRetreats, Year: 1},
+			want: Turn{Season: Fall, Phase: UpdateOwnership, Year: 1},
+		},
+		{
+			name: "update ownership advances to accept adjustments",
+			turn: Turn{Season: Fall, Phase: UpdateOwnership, Year: 1},
 			want: Turn{Season: Fall, Phase: AcceptAdjustments, Year: 1},
 		},
 		{
@@ -70,6 +75,7 @@ func TestTurnAcceptsOrders(t *testing.T) {
 		{AcceptAdjustments, true},
 		{ResolveOrders, false},
 		{ResolveRetreats, false},
+		{UpdateOwnership, false},
 		{ResolveAdjustments, false},
 		{Completed, false},
 	}

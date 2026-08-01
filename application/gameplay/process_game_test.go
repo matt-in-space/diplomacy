@@ -285,6 +285,44 @@ func TestGameplayServiceProcessGameProcessesRetreatCommitment(t *testing.T) {
 	}
 }
 
+func TestGameplayServiceProcessGameUpdatesOwnership(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.UpdateOwnership
+	g.Turn.Season = game.Fall
+	// unit-a sits on "lon" (repositoryTestGame's default); moving it to the
+	// previously-unowned "spa" exercises an actual capture, while "lon"
+	// becoming vacant exercises "keeps its previous owner".
+	unit := g.Units["unit-a"]
+	unit.ProvinceID = "spa"
+	unit.Coast = "spa-nc"
+	g.Units["unit-a"] = unit
+	g.SupplyCenterOwners = map[gamemap.ProvinceID]gamemap.NationID{
+		"lon": "eng", // now unoccupied: stays eng
+		"spa": "",    // now occupied by eng: captured
+	}
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	if games.saveCalls != 1 {
+		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	}
+	if g.Turn.Phase != game.AcceptAdjustments {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptAdjustments)
+	}
+	if got := g.SupplyCenterOwners["lon"]; got != "eng" {
+		t.Fatalf("SupplyCenterOwners[lon] = %q, want eng (unoccupied, keeps previous owner)", got)
+	}
+	if got := g.SupplyCenterOwners["spa"]; got != "eng" {
+		t.Fatalf("SupplyCenterOwners[spa] = %q, want eng (captured)", got)
+	}
+}
+
 func processGameTestMap() *gamemap.GameMap {
 	return &gamemap.GameMap{
 		ID:      "test-map",

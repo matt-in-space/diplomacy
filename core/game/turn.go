@@ -14,6 +14,7 @@ const (
 	ResolveOrders      Phase = "resolve_orders"
 	AcceptRetreats     Phase = "accept_retreats"
 	ResolveRetreats    Phase = "resolve_retreats"
+	UpdateOwnership    Phase = "update_ownership"
 	AcceptAdjustments  Phase = "accept_adjustments"
 	ResolveAdjustments Phase = "resolve_adjustments"
 	Completed          Phase = "completed"
@@ -61,8 +62,10 @@ func (t Turn) Next() Turn {
 			t.Season = Fall
 			t.Phase = AcceptOrders
 		} else {
-			t.Phase = AcceptAdjustments
+			t.Phase = UpdateOwnership
 		}
+	case UpdateOwnership:
+		t.Phase = AcceptAdjustments
 	case AcceptAdjustments:
 		t.Phase = ResolveAdjustments
 	case ResolveAdjustments:

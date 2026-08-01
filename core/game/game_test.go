@@ -61,6 +61,25 @@ func TestNewGame_CreatesGameFromMapSetup(t *testing.T) {
 	if got := g.Units["fra-army-par-start"].Coast; got != "" {
 		t.Fatalf("army Coast = %q, want empty", got)
 	}
+
+	wantOwners := map[gamemap.ProvinceID]gamemap.NationID{
+		"par": "fra",
+		"bre": "fra",
+		"lon": "eng",
+		"spa": "",
+		"por": "",
+	}
+	if len(g.SupplyCenterOwners) != len(wantOwners) {
+		t.Fatalf("SupplyCenterOwners length = %d, want %d", len(g.SupplyCenterOwners), len(wantOwners))
+	}
+	for province, wantNation := range wantOwners {
+		if got := g.SupplyCenterOwners[province]; got != wantNation {
+			t.Fatalf("SupplyCenterOwners[%q] = %q, want %q", province, got, wantNation)
+		}
+	}
+	if _, ok := g.SupplyCenterOwners["gas"]; ok {
+		t.Fatal("SupplyCenterOwners contains gas, which is not a supply center")
+	}
 }
 
 func TestNewGame_CopiesAssignments(t *testing.T) {
@@ -88,6 +107,7 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	g := newWesternEuropeGame(t, gm)
 	g.LastOrderResolution["sentinel"] = game.Outcome{}
 	g.LastRetreatResolution["sentinel"] = game.Outcome{}
+	g.SupplyCenterOwners["par"] = "fra"
 
 	clone := g.Clone()
 	if clone == g {
@@ -104,6 +124,7 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	clone.Orders["fra-army-par-start"] = game.NewHoldOrder("fra-army-par-start", "fra")
 	delete(clone.LastOrderResolution, "sentinel")
 	delete(clone.LastRetreatResolution, "sentinel")
+	clone.SupplyCenterOwners["par"] = "eng"
 
 	if got := g.Assignments["eng"]; got != "player-1" {
 		t.Fatalf("original assignment = %q, want player-1", got)
@@ -122,6 +143,9 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	}
 	if _, ok := g.LastRetreatResolution["sentinel"]; !ok {
 		t.Fatal("clone deletion affected original LastRetreatResolution")
+	}
+	if got := g.SupplyCenterOwners["par"]; got != "fra" {
+		t.Fatalf("original SupplyCenterOwners[par] = %q, want fra", got)
 	}
 }
 

@@ -74,6 +74,17 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 			return false, err
 		}
 		return true, nil
+
+	case game.UpdateOwnership:
+		gm, err := s.maps.GetMap(g.MapID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get game map %q: %w", g.MapID, err)
+		}
+
+		if err := g.CompleteOwnershipUpdate(gm); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 
 	return false, nil

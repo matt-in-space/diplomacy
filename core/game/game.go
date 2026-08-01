@@ -25,6 +25,7 @@ type Game struct {
 	CommittedOrders       map[gamemap.NationID]struct{}
 	LastOrderResolution   Resolution
 	LastRetreatResolution Resolution
+	SupplyCenterOwners    map[gamemap.ProvinceID]gamemap.NationID
 }
 
 func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
@@ -42,6 +43,7 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		CommittedOrders:       make(map[gamemap.NationID]struct{}),
 		LastOrderResolution:   Resolution{},
 		LastRetreatResolution: Resolution{},
+		SupplyCenterOwners:    make(map[gamemap.ProvinceID]gamemap.NationID),
 	}
 
 	for nation, player := range cfg.Assignments {
@@ -79,6 +81,12 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		g.Units[unitID] = unit
 	}
 
+	for _, province := range gm.Provinces {
+		if province.SupplyCenter {
+			g.SupplyCenterOwners[province.ID] = province.HomeNation
+		}
+	}
+
 	return g, nil
 }
 
@@ -112,6 +120,7 @@ func (g *Game) Clone() *Game {
 	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
 	clone.LastOrderResolution = maps.Clone(g.LastOrderResolution)
 	clone.LastRetreatResolution = maps.Clone(g.LastRetreatResolution)
+	clone.SupplyCenterOwners = maps.Clone(g.SupplyCenterOwners)
 
 	return &clone
 }
