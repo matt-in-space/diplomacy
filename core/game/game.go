@@ -16,14 +16,15 @@ type NewGameConfig struct {
 }
 
 type Game struct {
-	ID                  GameID
-	MapID               gamemap.MapID
-	Assignments         map[gamemap.NationID]PlayerID
-	Turn                Turn
-	Units               map[UnitID]Unit
-	Orders              map[UnitID]Order
-	CommittedOrders     map[gamemap.NationID]struct{}
-	LastOrderResolution Resolution
+	ID                    GameID
+	MapID                 gamemap.MapID
+	Assignments           map[gamemap.NationID]PlayerID
+	Turn                  Turn
+	Units                 map[UnitID]Unit
+	Orders                map[UnitID]Order
+	CommittedOrders       map[gamemap.NationID]struct{}
+	LastOrderResolution   Resolution
+	LastRetreatResolution Resolution
 }
 
 func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
@@ -32,14 +33,15 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 	}
 
 	g := &Game{
-		ID:                  cfg.ID,
-		MapID:               gm.ID,
-		Assignments:         make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
-		Turn:                StartingTurn(),
-		Units:               make(map[UnitID]Unit, len(gm.StartingUnits)),
-		Orders:              make(map[UnitID]Order),
-		CommittedOrders:     make(map[gamemap.NationID]struct{}),
-		LastOrderResolution: Resolution{},
+		ID:                    cfg.ID,
+		MapID:                 gm.ID,
+		Assignments:           make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
+		Turn:                  StartingTurn(),
+		Units:                 make(map[UnitID]Unit, len(gm.StartingUnits)),
+		Orders:                make(map[UnitID]Order),
+		CommittedOrders:       make(map[gamemap.NationID]struct{}),
+		LastOrderResolution:   Resolution{},
+		LastRetreatResolution: Resolution{},
 	}
 
 	for nation, player := range cfg.Assignments {
@@ -109,6 +111,7 @@ func (g *Game) Clone() *Game {
 	clone.Orders = maps.Clone(g.Orders)
 	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
 	clone.LastOrderResolution = maps.Clone(g.LastOrderResolution)
+	clone.LastRetreatResolution = maps.Clone(g.LastRetreatResolution)
 
 	return &clone
 }

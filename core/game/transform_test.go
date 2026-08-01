@@ -192,6 +192,171 @@ func TestApplyUnitTransformsRejectsUnknownType(t *testing.T) {
 	}
 }
 
+func TestApplyRetreatTransformsMovesUnit(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "b"},
+	})
+	if err != nil {
+		t.Fatalf("applyRetreatTransforms failed: %v", err)
+	}
+
+	got := g.Units["unit-a"]
+	if got.ProvinceID != "b" {
+		t.Fatalf("unit-a ProvinceID = %q, want b", got.ProvinceID)
+	}
+	if got.Dislodged() {
+		t.Fatal("unit-a is still marked dislodged")
+	}
+}
+
+func TestApplyRetreatTransformsPreservesFleetCoast(t *testing.T) {
+	fleet := dislodgedTestUnit("fleet-a", "spa")
+	fleet.Type = UnitTypeFleet
+	g := newTransformTestGame(fleet)
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "fleet-a", Type: UnitTransformMove, From: "spa", To: "por", Coast: "por"},
+	})
+	if err != nil {
+		t.Fatalf("applyRetreatTransforms failed: %v", err)
+	}
+
+	if got := g.Units["fleet-a"].Coast; got != "por" {
+		t.Fatalf("fleet-a Coast = %q, want por", got)
+	}
+}
+
+func TestApplyRetreatTransformsDisbandsUnit(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "a"},
+	})
+	if err != nil {
+		t.Fatalf("applyRetreatTransforms failed: %v", err)
+	}
+
+	if _, ok := g.Units["unit-a"]; ok {
+		t.Fatal("unit-a should have been removed from the game")
+	}
+}
+
+func TestApplyRetreatTransformsLeavesUntouchedUnitsAlone(t *testing.T) {
+	g := newTransformTestGame(
+		dislodgedTestUnit("unit-a", "a"),
+		testUnit("unit-b", "b"),
+	)
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "a"},
+	})
+	if err != nil {
+		t.Fatalf("applyRetreatTransforms failed: %v", err)
+	}
+
+	if got := g.Units["unit-b"].ProvinceID; got != "b" {
+		t.Fatalf("unit-b ProvinceID = %q, want b", got)
+	}
+}
+
+func TestApplyRetreatTransformsRejectsNonDislodgedUnit(t *testing.T) {
+	g := newTransformTestGame(testUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "a"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject a non-dislodged unit")
+	}
+}
+
+func TestApplyRetreatTransformsRequiresResultForEveryDislodgedUnit(t *testing.T) {
+	g := newTransformTestGame(
+		dislodgedTestUnit("unit-a", "a"),
+		dislodgedTestUnit("unit-b", "b"),
+	)
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "a"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to require a result for every dislodged unit")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsFromMismatch(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "wrong"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject a From mismatch")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsDuplicateDestination(t *testing.T) {
+	g := newTransformTestGame(
+		dislodgedTestUnit("unit-a", "a"),
+		dislodgedTestUnit("unit-b", "b"),
+	)
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
+		{UnitID: "unit-b", Type: UnitTransformMove, From: "b", To: "c"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject duplicate destinations")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsDuplicateUnit(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "b"},
+		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject a duplicate unit")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsMoveWithoutDestination(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformMove, From: "a"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject a move without a destination")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsDisbandWithDestination(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: UnitTransformDisband, From: "a", To: "b"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject a disband with a destination")
+	}
+}
+
+func TestApplyRetreatTransformsRejectsUnknownType(t *testing.T) {
+	g := newTransformTestGame(dislodgedTestUnit("unit-a", "a"))
+
+	err := g.applyRetreatTransforms([]UnitTransform{
+		{UnitID: "unit-a", Type: "unknown", From: "a"},
+	})
+	if err == nil {
+		t.Fatal("expected applyRetreatTransforms to reject an unknown transform type")
+	}
+}
+
 func newTransformTestGame(units ...Unit) *Game {
 	g := &Game{
 		Units: make(map[UnitID]Unit, len(units)),
@@ -208,5 +373,14 @@ func testUnit(id UnitID, province gamemap.ProvinceID) Unit {
 		NationID:   "nation-a",
 		ProvinceID: province,
 		Type:       UnitTypeArmy,
+	}
+}
+
+func dislodgedTestUnit(id UnitID, dislodgedFrom gamemap.ProvinceID) Unit {
+	return Unit{
+		ID:            id,
+		NationID:      "nation-a",
+		DislodgedFrom: dislodgedFrom,
+		Type:          UnitTypeArmy,
 	}
 }

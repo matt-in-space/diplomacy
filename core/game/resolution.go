@@ -26,6 +26,7 @@ const (
 	ReasonConvoyFailure     ReasonCode = "convoy_failure"
 	ReasonMisalignedSupport ReasonCode = "misaligned_support"
 	ReasonMisalignedConvoy  ReasonCode = "misaligned_convoy"
+	ReasonRetreatConflict   ReasonCode = "retreat_conflict"
 )
 
 // OrderOutcome details whether an order succeeded and why.
@@ -73,6 +74,28 @@ func (g *Game) allOrdersSubmitted() bool {
 	return true
 }
 
+func (g *Game) CompleteOrderResolution(res Resolution) error {
+	if g.Turn.Phase != ResolveOrders {
+		return fmt.Errorf("order resolution can only be completed in the resolve orders phase")
+	}
+
+	transforms := make([]UnitTransform, 0, len(res))
+	for _, t := range res {
+		transforms = append(transforms, t.Unit)
+	}
+
+	if err := g.applyUnitTransforms(transforms); err != nil {
+		return err
+	}
+
+	g.CommittedOrders = make(map[gamemap.NationID]struct{})
+	g.Orders = make(map[UnitID]Order)
+	g.LastOrderResolution = res
+	g.Turn = g.Turn.Next()
+
+	return nil
+}
+
 // BeginRetreatResolution advances the game out of the accept retreats phase
 // once every nation with a dislodged unit has committed. A turn with no
 // dislodgements has no nations to wait for and advances immediately.
@@ -104,23 +127,27 @@ func (g *Game) nationsAwaitingRetreats() map[gamemap.NationID]struct{} {
 	return awaiting
 }
 
-func (g *Game) CompleteOrderResolution(res Resolution) error {
-	if g.Turn.Phase != ResolveOrders {
-		return fmt.Errorf("order resolution can only be completed in the resolve orders phase")
+// CompleteRetreatResolution applies the outcome of retreat resolution: units
+// that retreated successfully land on the board, and units that disbanded
+// (voluntarily, by default, or via a retreat conflict) are removed from the
+// game.
+func (g *Game) CompleteRetreatResolution(res Resolution) error {
+	if g.Turn.Phase != ResolveRetreats {
+		return fmt.Errorf("retreat resolution can only be completed in the resolve retreats phase")
 	}
 
 	transforms := make([]UnitTransform, 0, len(res))
-	for _, t := range res {
-		transforms = append(transforms, t.Unit)
+	for _, o := range res {
+		transforms = append(transforms, o.Unit)
 	}
 
-	if err := g.applyUnitTransforms(transforms); err != nil {
+	if err := g.applyRetreatTransforms(transforms); err != nil {
 		return err
 	}
 
 	g.CommittedOrders = make(map[gamemap.NationID]struct{})
 	g.Orders = make(map[UnitID]Order)
-	g.LastOrderResolution = res
+	g.LastRetreatResolution = res
 	g.Turn = g.Turn.Next()
 
 	return nil

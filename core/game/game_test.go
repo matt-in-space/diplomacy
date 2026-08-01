@@ -86,6 +86,8 @@ func TestNewGame_CopiesAssignments(t *testing.T) {
 func TestGameCloneCopiesReferenceState(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 	g := newWesternEuropeGame(t, gm)
+	g.LastOrderResolution["sentinel"] = game.Outcome{}
+	g.LastRetreatResolution["sentinel"] = game.Outcome{}
 
 	clone := g.Clone()
 	if clone == g {
@@ -100,6 +102,8 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	fleet.Coast = "changed-coast"
 	clone.Units[fleet.ID] = fleet
 	clone.Orders["fra-army-par-start"] = game.NewHoldOrder("fra-army-par-start", "fra")
+	delete(clone.LastOrderResolution, "sentinel")
+	delete(clone.LastRetreatResolution, "sentinel")
 
 	if got := g.Assignments["eng"]; got != "player-1" {
 		t.Fatalf("original assignment = %q, want player-1", got)
@@ -112,6 +116,12 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	}
 	if _, ok := g.Orders["fra-army-par-start"]; ok {
 		t.Fatal("clone order was added to original game")
+	}
+	if _, ok := g.LastOrderResolution["sentinel"]; !ok {
+		t.Fatal("clone deletion affected original LastOrderResolution")
+	}
+	if _, ok := g.LastRetreatResolution["sentinel"]; !ok {
+		t.Fatal("clone deletion affected original LastRetreatResolution")
 	}
 }
 

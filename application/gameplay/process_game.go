@@ -58,6 +58,22 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 
 	case game.AcceptRetreats:
 		return g.BeginRetreatResolution()
+
+	case game.ResolveRetreats:
+		gm, err := s.maps.GetMap(g.MapID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get game map %q: %w", g.MapID, err)
+		}
+
+		res, err := adjudicator.ResolveRetreats(g, gm)
+		if err != nil {
+			return false, fmt.Errorf("failed to resolve retreats: %w", err)
+		}
+
+		if err := g.CompleteRetreatResolution(res); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 
 	return false, nil

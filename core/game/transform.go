@@ -12,6 +12,7 @@ const (
 	UnitTransformMove    UnitTransformType = "move"
 	UnitTransformHold    UnitTransformType = "hold"
 	UnitTransformRetreat UnitTransformType = "retreat"
+	UnitTransformDisband UnitTransformType = "disband"
 )
 
 // UnitTransform details the unit's final position and type.
@@ -101,6 +102,86 @@ func (g *Game) validateUnitTransforms(results []UnitTransform) error {
 			return fmt.Errorf("units %q and %q both end in province %q", other, result.UnitID, result.To)
 		}
 		destinations[result.To] = result.UnitID
+	}
+
+	return nil
+}
+
+// applyRetreatTransforms applies the outcome of retreat resolution. Unlike
+// applyUnitTransforms, it only concerns itself with the dislodged units the
+// retreat phase actually decided the fate of: a Move lands a unit back on the
+// board, a Disband removes it from the game entirely. Units that were never
+// dislodged are untouched and not mentioned in results.
+func (g *Game) applyRetreatTransforms(results []UnitTransform) error {
+	if err := g.validateRetreatTransforms(results); err != nil {
+		return err
+	}
+
+	for _, result := range results {
+		switch result.Type {
+		case UnitTransformMove:
+			unit := g.Units[result.UnitID]
+			unit.ProvinceID = result.To
+			unit.DislodgedFrom = ""
+			if unit.Type == UnitTypeFleet {
+				unit.Coast = result.Coast
+			}
+			g.Units[result.UnitID] = unit
+		case UnitTransformDisband:
+			delete(g.Units, result.UnitID)
+		}
+	}
+
+	return nil
+}
+
+// validateRetreatTransforms checks that results covers exactly the currently
+// dislodged units, each transform matches the unit it dislodged from, and no
+// two units retreat to the same destination.
+func (g *Game) validateRetreatTransforms(results []UnitTransform) error {
+	dislodged := make(map[UnitID]struct{})
+	for id, unit := range g.Units {
+		if unit.Dislodged() {
+			dislodged[id] = struct{}{}
+		}
+	}
+	if len(results) != len(dislodged) {
+		return fmt.Errorf("received %d retreat transforms for %d dislodged units", len(results), len(dislodged))
+	}
+
+	seen := make(map[UnitID]struct{}, len(results))
+	destinations := make(map[gamemap.ProvinceID]UnitID, len(results))
+
+	for _, result := range results {
+		if _, ok := seen[result.UnitID]; ok {
+			return fmt.Errorf("duplicate retreat transform for unit %q", result.UnitID)
+		}
+		seen[result.UnitID] = struct{}{}
+
+		unit, ok := g.Units[result.UnitID]
+		if !ok || !unit.Dislodged() {
+			return fmt.Errorf("unit %q is not dislodged", result.UnitID)
+		}
+		if result.From != unit.DislodgedFrom {
+			return fmt.Errorf("unit %q was dislodged from %q, not %q", result.UnitID, unit.DislodgedFrom, result.From)
+		}
+
+		switch result.Type {
+		case UnitTransformMove:
+			if result.To == "" {
+				return fmt.Errorf("retreat transform for unit %q has no destination", result.UnitID)
+			}
+			if other, ok := destinations[result.To]; ok {
+				return fmt.Errorf("units %q and %q both retreat to %q", other, result.UnitID, result.To)
+			}
+			destinations[result.To] = result.UnitID
+		case UnitTransformDisband:
+			if result.To != "" {
+				return fmt.Errorf("disband transform for unit %q has destination %q", result.UnitID, result.To)
+			}
+		default:
+			return fmt.Errorf("unsupported retreat transform type %q for unit %q", result.Type, result.UnitID)
+		}
 	}
 
 	return nil

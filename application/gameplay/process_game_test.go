@@ -45,23 +45,27 @@ func TestGameplayServiceProcessGameProcessesReadyOrders(t *testing.T) {
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
 	// repositoryTestGame's single unit is never dislodged, so accept retreats
-	// has no nations to wait for and advances immediately: three phases run
-	// (resolve orders, accept retreats, resolve retreats) before the loop
-	// stops at the still-unhandled resolve retreats phase.
-	if games.saveCalls != 3 {
-		t.Fatalf("SaveGame calls = %d, want 3", games.saveCalls)
+	// has no nations to wait for and resolve retreats has nothing to decide:
+	// four phases run (resolve orders, accept retreats, resolve retreats,
+	// and into fall's accept orders) before the loop stops waiting for a
+	// commitment that hasn't happened yet.
+	if games.saveCalls != 4 {
+		t.Fatalf("SaveGame calls = %d, want 4", games.saveCalls)
 	}
-	if got, want := games.expectedVersions, []uint64{3, 4, 5}; !equalVersions(got, want) {
+	if got, want := games.expectedVersions, []uint64{3, 4, 5, 6}; !equalVersions(got, want) {
 		t.Fatalf("SaveGame expected versions = %v, want %v", got, want)
 	}
-	if got, want := games.savedPhases, []game.Phase{game.ResolveOrders, game.AcceptRetreats, game.ResolveRetreats}; !equalPhases(got, want) {
+	if got, want := games.savedPhases, []game.Phase{game.ResolveOrders, game.AcceptRetreats, game.ResolveRetreats, game.AcceptOrders}; !equalPhases(got, want) {
 		t.Fatalf("saved phases = %v, want %v", got, want)
 	}
-	if maps.calls != 1 {
-		t.Fatalf("GetMap calls = %d, want 1", maps.calls)
+	if maps.calls != 2 {
+		t.Fatalf("GetMap calls = %d, want 2", maps.calls)
 	}
-	if g.Turn.Phase != game.ResolveRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
+	}
+	if g.Turn.Season != game.Fall {
+		t.Fatalf("Turn.Season = %q, want %q", g.Turn.Season, game.Fall)
 	}
 	if len(g.CommittedOrders) != 0 {
 		t.Fatalf("CommittedOrders length = %d, want 0", len(g.CommittedOrders))
@@ -83,15 +87,16 @@ func TestGameplayServiceProcessGameProcessesResolutionPhase(t *testing.T) {
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
-	// As above, no dislodged units means accept retreats advances immediately.
-	if games.saveCalls != 2 {
-		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
+	// As above, no dislodged units means accept retreats and resolve retreats
+	// both run without anyone needing to commit.
+	if games.saveCalls != 3 {
+		t.Fatalf("SaveGame calls = %d, want 3", games.saveCalls)
 	}
 	if games.expectedVersions[0] != 6 {
 		t.Fatalf("SaveGame expected version = %d, want 6", games.expectedVersions[0])
 	}
-	if g.Turn.Phase != game.ResolveRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
 	}
 }
 
@@ -188,7 +193,7 @@ func TestGameplayServiceProcessGameReturnsSaveError(t *testing.T) {
 
 func TestGameplayServiceProcessGameIgnoresUnsupportedPhase(t *testing.T) {
 	g := repositoryTestGame("test-game")
-	g.Turn.Phase = game.ResolveRetreats
+	g.Turn.Phase = game.AcceptAdjustments
 	games := &processGameRepository{
 		stored: StoredGame{Game: g, Version: 0},
 	}
@@ -219,15 +224,16 @@ func TestGameplayServiceProcessGameSkipsRetreatsWithNoDislodgements(t *testing.T
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
 	// No unit is dislodged, so there is no nation to wait for a commitment
-	// from: the phase advances on the first pass.
-	if games.saveCalls != 1 {
-		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	// from, and resolve retreats has nothing to decide either: both phases
+	// run back-to-back.
+	if games.saveCalls != 2 {
+		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
 	}
-	if maps.calls != 0 {
-		t.Fatalf("GetMap calls = %d, want 0", maps.calls)
+	if maps.calls != 1 {
+		t.Fatalf("GetMap calls = %d, want 1", maps.calls)
 	}
-	if g.Turn.Phase != game.ResolveRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
 	}
 }
 
@@ -266,11 +272,16 @@ func TestGameplayServiceProcessGameProcessesRetreatCommitment(t *testing.T) {
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
-	if games.saveCalls != 1 {
-		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	if games.saveCalls != 2 {
+		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
 	}
-	if g.Turn.Phase != game.ResolveRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
+	}
+	// No retreat order was submitted for the dislodged unit, so it force-
+	// disbands rather than retreating.
+	if _, ok := g.Units["unit-a"]; ok {
+		t.Fatal("unit-a should have been disbanded, but is still present")
 	}
 }
 

@@ -103,6 +103,106 @@ func TestGameCompleteOrderResolutionPreservesLifecycleStateWhenTransformsFail(t 
 	}
 }
 
+func TestGameCompleteRetreatResolution(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	g.Turn.Phase = game.ResolveRetreats
+	dislodge(t, g, "fra-army-par-start")
+
+	res := game.Resolution{
+		"fra-army-par-start": game.Outcome{
+			UnitID: "fra-army-par-start",
+			Unit: game.UnitTransform{
+				UnitID: "fra-army-par-start",
+				Type:   game.UnitTransformMove,
+				From:   "par",
+				To:     "gas",
+			},
+			Order: game.CreateOrderSuccessOutcome(game.NewRetreatOrder("fra-army-par-start", "fra", "gas", "")),
+		},
+	}
+
+	if err := g.CompleteRetreatResolution(res); err != nil {
+		t.Fatalf("CompleteRetreatResolution failed: %v", err)
+	}
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
+	}
+	if g.Turn.Season != game.Fall {
+		t.Fatalf("Turn.Season = %q, want %q", g.Turn.Season, game.Fall)
+	}
+	if got := g.Units["fra-army-par-start"].ProvinceID; got != "gas" {
+		t.Fatalf("unit province = %q, want gas", got)
+	}
+	if len(g.CommittedOrders) != 0 {
+		t.Fatalf("CommittedOrders length = %d, want 0", len(g.CommittedOrders))
+	}
+	if len(g.Orders) != 0 {
+		t.Fatalf("Orders length = %d, want 0", len(g.Orders))
+	}
+	if len(g.LastRetreatResolution) != 1 {
+		t.Fatalf("LastRetreatResolution length = %d, want 1", len(g.LastRetreatResolution))
+	}
+}
+
+func TestGameCompleteRetreatResolutionDisbandsUnit(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	g.Turn.Phase = game.ResolveRetreats
+	dislodge(t, g, "fra-army-par-start")
+
+	res := game.Resolution{
+		"fra-army-par-start": game.Outcome{
+			UnitID: "fra-army-par-start",
+			Unit: game.UnitTransform{
+				UnitID: "fra-army-par-start",
+				Type:   game.UnitTransformDisband,
+				From:   "par",
+			},
+			Order: game.CreateOrderSuccessOutcome(game.NewDisbandOrder("fra-army-par-start", "fra")),
+		},
+	}
+
+	if err := g.CompleteRetreatResolution(res); err != nil {
+		t.Fatalf("CompleteRetreatResolution failed: %v", err)
+	}
+	if _, ok := g.Units["fra-army-par-start"]; ok {
+		t.Fatal("unit should have been disbanded")
+	}
+}
+
+func TestGameCompleteRetreatResolutionRejectsWrongPhase(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+
+	err := g.CompleteRetreatResolution(game.Resolution{})
+	if err == nil {
+		t.Fatal("expected CompleteRetreatResolution to reject wrong phase")
+	}
+}
+
+func TestGameCompleteRetreatResolutionDoesNotTouchLastOrderResolution(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	g.Turn.Phase = game.ResolveRetreats
+	dislodge(t, g, "fra-army-par-start")
+	g.LastOrderResolution = game.Resolution{"sentinel": game.Outcome{}}
+
+	res := game.Resolution{
+		"fra-army-par-start": game.Outcome{
+			UnitID: "fra-army-par-start",
+			Unit:   game.UnitTransform{UnitID: "fra-army-par-start", Type: game.UnitTransformDisband, From: "par"},
+			Order:  game.CreateOrderSuccessOutcome(game.NewDisbandOrder("fra-army-par-start", "fra")),
+		},
+	}
+	if err := g.CompleteRetreatResolution(res); err != nil {
+		t.Fatalf("CompleteRetreatResolution failed: %v", err)
+	}
+	if len(g.LastOrderResolution) != 1 {
+		t.Fatalf("LastOrderResolution was modified: %v", g.LastOrderResolution)
+	}
+}
+
 func holdResolution(g *game.Game) game.Resolution {
 	res := make(game.Resolution)
 
