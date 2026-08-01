@@ -23,7 +23,7 @@ type UnitTransform struct {
 	Coast  gamemap.CoastID
 }
 
-func (g *Game) ApplyUnitTransforms(results []UnitTransform) error {
+func (g *Game) applyUnitTransforms(results []UnitTransform) error {
 	if err := g.validateUnitTransforms(results); err != nil {
 		return err
 	}

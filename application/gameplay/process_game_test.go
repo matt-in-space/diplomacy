@@ -44,20 +44,24 @@ func TestGameplayServiceProcessGameProcessesReadyOrders(t *testing.T) {
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
-	if games.saveCalls != 2 {
-		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
+	// repositoryTestGame's single unit is never dislodged, so accept retreats
+	// has no nations to wait for and advances immediately: three phases run
+	// (resolve orders, accept retreats, resolve retreats) before the loop
+	// stops at the still-unhandled resolve retreats phase.
+	if games.saveCalls != 3 {
+		t.Fatalf("SaveGame calls = %d, want 3", games.saveCalls)
 	}
-	if got, want := games.expectedVersions, []uint64{3, 4}; !equalVersions(got, want) {
+	if got, want := games.expectedVersions, []uint64{3, 4, 5}; !equalVersions(got, want) {
 		t.Fatalf("SaveGame expected versions = %v, want %v", got, want)
 	}
-	if got, want := games.savedPhases, []game.Phase{game.ResolveOrders, game.AcceptRetreats}; !equalPhases(got, want) {
+	if got, want := games.savedPhases, []game.Phase{game.ResolveOrders, game.AcceptRetreats, game.ResolveRetreats}; !equalPhases(got, want) {
 		t.Fatalf("saved phases = %v, want %v", got, want)
 	}
 	if maps.calls != 1 {
 		t.Fatalf("GetMap calls = %d, want 1", maps.calls)
 	}
-	if g.Turn.Phase != game.AcceptRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptRetreats)
+	if g.Turn.Phase != game.ResolveRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
 	}
 	if len(g.CommittedOrders) != 0 {
 		t.Fatalf("CommittedOrders length = %d, want 0", len(g.CommittedOrders))
@@ -79,14 +83,15 @@ func TestGameplayServiceProcessGameProcessesResolutionPhase(t *testing.T) {
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
 	}
-	if games.saveCalls != 1 {
-		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	// As above, no dislodged units means accept retreats advances immediately.
+	if games.saveCalls != 2 {
+		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
 	}
 	if games.expectedVersions[0] != 6 {
 		t.Fatalf("SaveGame expected version = %d, want 6", games.expectedVersions[0])
 	}
-	if g.Turn.Phase != game.AcceptRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptRetreats)
+	if g.Turn.Phase != game.ResolveRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
 	}
 }
 
@@ -183,7 +188,7 @@ func TestGameplayServiceProcessGameReturnsSaveError(t *testing.T) {
 
 func TestGameplayServiceProcessGameIgnoresUnsupportedPhase(t *testing.T) {
 	g := repositoryTestGame("test-game")
-	g.Turn.Phase = game.AcceptRetreats
+	g.Turn.Phase = game.ResolveRetreats
 	games := &processGameRepository{
 		stored: StoredGame{Game: g, Version: 0},
 	}
@@ -198,6 +203,74 @@ func TestGameplayServiceProcessGameIgnoresUnsupportedPhase(t *testing.T) {
 	}
 	if maps.calls != 0 {
 		t.Fatalf("GetMap calls = %d, want 0", maps.calls)
+	}
+}
+
+func TestGameplayServiceProcessGameSkipsRetreatsWithNoDislodgements(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.AcceptRetreats
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	// No unit is dislodged, so there is no nation to wait for a commitment
+	// from: the phase advances on the first pass.
+	if games.saveCalls != 1 {
+		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	}
+	if maps.calls != 0 {
+		t.Fatalf("GetMap calls = %d, want 0", maps.calls)
+	}
+	if g.Turn.Phase != game.ResolveRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
+	}
+}
+
+func TestGameplayServiceProcessGameWaitsForRetreatCommitment(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.AcceptRetreats
+	dislodgeUnit(t, g, "unit-a")
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	if games.saveCalls != 0 {
+		t.Fatalf("SaveGame calls = %d, want 0", games.saveCalls)
+	}
+	if g.Turn.Phase != game.AcceptRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptRetreats)
+	}
+}
+
+func TestGameplayServiceProcessGameProcessesRetreatCommitment(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.AcceptRetreats
+	dislodgeUnit(t, g, "unit-a")
+	g.CommittedOrders["eng"] = struct{}{}
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	if games.saveCalls != 1 {
+		t.Fatalf("SaveGame calls = %d, want 1", games.saveCalls)
+	}
+	if g.Turn.Phase != game.ResolveRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveRetreats)
 	}
 }
 

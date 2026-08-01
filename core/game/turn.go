@@ -36,6 +36,18 @@ func StartingTurn() Turn {
 	}
 }
 
+// AcceptsOrders reports whether the phase is one in which players submit and
+// commit orders (as opposed to a resolution phase, which the game itself
+// drives).
+func (t Turn) AcceptsOrders() bool {
+	switch t.Phase {
+	case AcceptOrders, AcceptRetreats, AcceptAdjustments:
+		return true
+	default:
+		return false
+	}
+}
+
 func (t Turn) Next() Turn {
 	switch t.Phase {
 	case AcceptOrders:

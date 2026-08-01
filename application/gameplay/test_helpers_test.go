@@ -1,6 +1,8 @@
 package gameplay
 
 import (
+	"testing"
+
 	"github.com/matt-in-space/diplomacy/core/game"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
@@ -25,4 +27,18 @@ func repositoryTestGame(id game.GameID) *game.Game {
 		Orders:          make(map[game.UnitID]game.Order),
 		CommittedOrders: make(map[gamemap.NationID]struct{}),
 	}
+}
+
+// dislodgeUnit marks an on-board unit as dislodged, clearing its province and
+// recording where it was dislodged from.
+func dislodgeUnit(t *testing.T, g *game.Game, id game.UnitID) {
+	t.Helper()
+
+	unit, ok := g.Units[id]
+	if !ok {
+		t.Fatalf("unit %q not found", id)
+	}
+	unit.DislodgedFrom = unit.ProvinceID
+	unit.ProvinceID = ""
+	g.Units[id] = unit
 }

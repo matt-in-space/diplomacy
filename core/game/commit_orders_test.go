@@ -20,6 +20,19 @@ func TestGameCommitOrders(t *testing.T) {
 	}
 }
 
+func TestGameCommitOrders_AcceptsRetreatsPhase(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+	g.Turn.Phase = game.AcceptRetreats
+
+	if err := g.CommitOrders("eng", gm); err != nil {
+		t.Fatalf("CommitOrders failed: %v", err)
+	}
+	if _, ok := g.CommittedOrders["eng"]; !ok {
+		t.Fatal("CommittedOrders does not contain eng")
+	}
+}
+
 func TestGameCommitOrdersRejectsInvalidInput(t *testing.T) {
 	tests := []struct {
 		name string

@@ -14,7 +14,7 @@ func (g *Game) CommitOrders(nationID gamemap.NationID, gm *gamemap.GameMap) erro
 	if gm.ID != g.MapID {
 		return fmt.Errorf("game map %q does not match game map %q", gm.ID, g.MapID)
 	}
-	if g.Turn.Phase != AcceptOrders {
+	if !g.Turn.AcceptsOrders() {
 		return fmt.Errorf("cannot commit orders during phase %q", g.Turn.Phase)
 	}
 	if !slices.Contains(gm.Nations, nationID) {

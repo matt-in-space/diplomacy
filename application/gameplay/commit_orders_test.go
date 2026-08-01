@@ -135,11 +135,14 @@ func TestGameplayServiceCommitOrdersProcessesGameAfterFinalCommitment(t *testing
 	if err != nil {
 		t.Fatalf("GetGame failed: %v", err)
 	}
-	if stored.Version != 3 {
-		t.Fatalf("stored version = %d, want 3", stored.Version)
+	// With no dislodged units, the accept retreats phase has no nations to
+	// wait for and advances immediately, so processing runs one phase further
+	// than it would with a dislodgement pending.
+	if stored.Version != 4 {
+		t.Fatalf("stored version = %d, want 4", stored.Version)
 	}
-	if stored.Game.Turn.Phase != game.AcceptRetreats {
-		t.Fatalf("Turn.Phase = %q, want %q", stored.Game.Turn.Phase, game.AcceptRetreats)
+	if stored.Game.Turn.Phase != game.ResolveRetreats {
+		t.Fatalf("Turn.Phase = %q, want %q", stored.Game.Turn.Phase, game.ResolveRetreats)
 	}
 	if len(stored.Game.CommittedOrders) != 0 {
 		t.Fatalf("CommittedOrders length = %d, want 0", len(stored.Game.CommittedOrders))

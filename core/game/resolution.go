@@ -73,6 +73,37 @@ func (g *Game) allOrdersSubmitted() bool {
 	return true
 }
 
+// BeginRetreatResolution advances the game out of the accept retreats phase
+// once every nation with a dislodged unit has committed. A turn with no
+// dislodgements has no nations to wait for and advances immediately.
+func (g *Game) BeginRetreatResolution() (progressed bool, err error) {
+	if g.Turn.Phase != AcceptRetreats {
+		return false, fmt.Errorf("retreat resolution can only be started in the accept retreats phase")
+	}
+
+	for nationID := range g.nationsAwaitingRetreats() {
+		if _, ok := g.CommittedOrders[nationID]; !ok {
+			return false, nil
+		}
+	}
+
+	g.Turn = g.Turn.Next()
+
+	return true, nil
+}
+
+// nationsAwaitingRetreats returns the set of nations with at least one
+// dislodged unit, which must commit before the retreat phase can advance.
+func (g *Game) nationsAwaitingRetreats() map[gamemap.NationID]struct{} {
+	awaiting := make(map[gamemap.NationID]struct{})
+	for _, unit := range g.Units {
+		if unit.Dislodged() {
+			awaiting[unit.NationID] = struct{}{}
+		}
+	}
+	return awaiting
+}
+
 func (g *Game) CompleteOrderResolution(res Resolution) error {
 	if g.Turn.Phase != ResolveOrders {
 		return fmt.Errorf("order resolution can only be completed in the resolve orders phase")
@@ -83,7 +114,7 @@ func (g *Game) CompleteOrderResolution(res Resolution) error {
 		transforms = append(transforms, t.Unit)
 	}
 
-	if err := g.ApplyUnitTransforms(transforms); err != nil {
+	if err := g.applyUnitTransforms(transforms); err != nil {
 		return err
 	}
 

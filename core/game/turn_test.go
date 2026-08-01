@@ -59,3 +59,27 @@ func TestTurnNext(t *testing.T) {
 		})
 	}
 }
+
+func TestTurnAcceptsOrders(t *testing.T) {
+	tests := []struct {
+		phase Phase
+		want  bool
+	}{
+		{AcceptOrders, true},
+		{AcceptRetreats, true},
+		{AcceptAdjustments, true},
+		{ResolveOrders, false},
+		{ResolveRetreats, false},
+		{ResolveAdjustments, false},
+		{Completed, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.phase), func(t *testing.T) {
+			turn := Turn{Season: Spring, Phase: tt.phase, Year: 1}
+			if got := turn.AcceptsOrders(); got != tt.want {
+				t.Fatalf("AcceptsOrders() for phase %q = %v, want %v", tt.phase, got, tt.want)
+			}
+		})
+	}
+}

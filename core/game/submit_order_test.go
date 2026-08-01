@@ -117,3 +117,102 @@ func TestGameSubmitOrder_RejectsInvalidOrders(t *testing.T) {
 		})
 	}
 }
+
+// retreatScenarioGame builds a minimal game in the accept retreats phase: an
+// army dislodged from "par" by an attacker that came from "gas" (so "gas" is
+// excluded from legal retreats and "bre" is the only legal destination).
+func retreatScenarioGame(gm *gamemap.GameMap) *game.Game {
+	return &game.Game{
+		MapID: gm.ID,
+		Turn:  game.Turn{Season: game.Spring, Phase: game.AcceptRetreats, Year: 1},
+		Units: map[game.UnitID]game.Unit{
+			"fra-army-par": {
+				ID: "fra-army-par", NationID: "fra", Type: game.UnitTypeArmy,
+				DislodgedFrom: "par",
+			},
+			"eng-army-attacker": {
+				ID: "eng-army-attacker", NationID: "eng", Type: game.UnitTypeArmy,
+				ProvinceID: "par",
+			},
+		},
+		LastOrderResolution: game.Resolution{
+			"eng-army-attacker": game.Outcome{
+				UnitID: "eng-army-attacker",
+				Unit:   game.UnitTransform{UnitID: "eng-army-attacker", Type: game.UnitTransformMove, From: "gas", To: "par"},
+				Order:  game.CreateOrderSuccessOutcome(game.NewMoveOrder("eng-army-attacker", "eng", "par", "")),
+			},
+		},
+		Orders:          make(map[game.UnitID]game.Order),
+		CommittedOrders: make(map[gamemap.NationID]struct{}),
+	}
+}
+
+func TestGameSubmitOrder_AcceptsRetreatOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := retreatScenarioGame(gm)
+
+	order := game.NewRetreatOrder("fra-army-par", "fra", "bre", "")
+	if err := g.SubmitOrder(order, gm); err != nil {
+		t.Fatalf("SubmitOrder failed: %v", err)
+	}
+	got, ok := g.Orders[order.Unit()].(game.RetreatOrder)
+	if !ok {
+		t.Fatalf("expected stored order to be RetreatOrder, got %T", g.Orders[order.Unit()])
+	}
+	if got != order {
+		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+}
+
+func TestGameSubmitOrder_AcceptsDisbandOrder(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := retreatScenarioGame(gm)
+
+	order := game.NewDisbandOrder("fra-army-par", "fra")
+	if err := g.SubmitOrder(order, gm); err != nil {
+		t.Fatalf("SubmitOrder failed: %v", err)
+	}
+	if _, ok := g.Orders[order.Unit()].(game.DisbandOrder); !ok {
+		t.Fatalf("expected stored order to be DisbandOrder, got %T", g.Orders[order.Unit()])
+	}
+}
+
+func TestGameSubmitOrder_RejectsInvalidRetreatOrders(t *testing.T) {
+	tests := []struct {
+		name  string
+		order func() game.Order
+		want  string
+	}{
+		{
+			name:  "destination is the attacker's origin",
+			order: func() game.Order { return game.NewRetreatOrder("fra-army-par", "fra", "gas", "") },
+			want:  "attacking unit's origin",
+		},
+		{
+			name:  "unit is not dislodged",
+			order: func() game.Order { return game.NewRetreatOrder("eng-army-attacker", "eng", "bre", "") },
+			want:  "is not dislodged",
+		},
+		{
+			name:  "movement order during retreats",
+			order: func() game.Order { return game.NewMoveOrder("fra-army-par", "fra", "bre", "") },
+			want:  "unsupported order type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gm := loadWesternEuropeMap(t)
+			g := retreatScenarioGame(gm)
+			assertSubmitOrderErrorContains(t, g, tt.order(), gm, tt.want)
+		})
+	}
+}
+
+func TestGameSubmitOrder_RejectsRetreatOrderDuringMovementPhase(t *testing.T) {
+	gm := loadWesternEuropeMap(t)
+	g := newWesternEuropeGame(t, gm)
+
+	order := game.NewRetreatOrder("fra-army-par-start", "fra", "gas", "")
+	assertSubmitOrderErrorContains(t, g, order, gm, "unsupported order type")
+}

@@ -19,18 +19,15 @@ func Resolve(g *game.Game, gm *gamemap.GameMap) (game.Resolution, error) {
 	ctx.normalizeOrders()
 	ctx.categorizeOrders()
 	ctx.pruneMisalignedOrders()
-	ctx.buildIntendedEndingPositions()
 	ctx.resolveOrders()
-	ctx.recordDislodgements()
 
 	return ctx.buildResolution(), nil
 }
 
 type resolutionContext struct {
-	gm                *gamemap.GameMap
-	units             map[game.UnitID]game.Unit
-	currentPositions  map[gamemap.ProvinceID]game.UnitID
-	intendedPositions map[gamemap.ProvinceID][]game.UnitID
+	gm               *gamemap.GameMap
+	units            map[game.UnitID]game.Unit
+	currentPositions map[gamemap.ProvinceID]game.UnitID
 
 	// allOrders holds every unit's order (submitted, or a defaulted hold).
 	allOrders map[game.UnitID]game.Order
@@ -57,7 +54,6 @@ type resolutionContext struct {
 	dependencyStack []game.UnitID
 	movesByTarget   map[gamemap.ProvinceID][]game.UnitID
 	convoysByArmy   map[game.UnitID][]game.ConvoyOrder
-	dislodgedBy     map[game.UnitID]game.UnitID
 
 	// Outcomes recorded during pruning (misaligned/failed-convoy orders). The
 	// resolver merges these into the final resolution rather than overwriting them.
@@ -70,7 +66,6 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		gm:                         gm,
 		units:                      units,
 		currentPositions:           positionIndex(units),
-		intendedPositions:          make(map[gamemap.ProvinceID][]game.UnitID),
 		allOrders:                  maps.Clone(g.Orders),
 		moveOrders:                 make(map[game.UnitID]game.MoveOrder),
 		holdOrders:                 make(map[game.UnitID]game.HoldOrder),
@@ -105,19 +100,6 @@ func (rc *resolutionContext) normalizeOrders() {
 		if _, ok := rc.allOrders[id]; !ok {
 			rc.allOrders[id] = game.NewHoldOrder(unit.ID, unit.NationID)
 		}
-	}
-}
-
-// buildIntendedEndingPositions maps each province to the units intending to end
-// there. It runs after pruning and reads the effective orders, so a demoted
-// convoyed move counts toward its origin (where it now holds), not its target.
-func (rc *resolutionContext) buildIntendedEndingPositions() {
-	for id, unit := range rc.units {
-		if move, ok := rc.effectiveMoveOrders[id]; ok {
-			rc.intendedPositions[move.Target] = append(rc.intendedPositions[move.Target], id)
-			continue
-		}
-		rc.intendedPositions[unit.ProvinceID] = append(rc.intendedPositions[unit.ProvinceID], id)
 	}
 }
 
@@ -238,21 +220,4 @@ func (rc *resolutionContext) convoyPathExists(move game.MoveOrder, carriers []ga
 	}
 
 	return rc.gm.ConvoyPathExists(unit.ProvinceID, move.Target, via)
-}
-
-func (rc *resolutionContext) recordDislodgements() {
-	rc.dislodgedBy = make(map[game.UnitID]game.UnitID)
-
-	for victimID, unit := range rc.units {
-		if _, moving := rc.effectiveMoveOrders[victimID]; moving && rc.resolution[victimID] {
-			continue
-		}
-
-		for _, attackerID := range rc.movesByTarget[unit.ProvinceID] {
-			if attackerID != victimID && rc.resolution[attackerID] {
-				rc.dislodgedBy[victimID] = attackerID
-				break
-			}
-		}
-	}
 }

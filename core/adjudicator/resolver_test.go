@@ -13,7 +13,6 @@ func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Orde
 	rc.normalizeOrders()
 	rc.categorizeOrders()
 	rc.pruneMisalignedOrders()
-	rc.buildIntendedEndingPositions()
 	rc.resolveOrders()
 	return rc.buildResolution()
 }

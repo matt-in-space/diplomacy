@@ -55,6 +55,9 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 			return false, err
 		}
 		return true, nil
+
+	case game.AcceptRetreats:
+		return g.BeginRetreatResolution()
 	}
 
 	return false, nil

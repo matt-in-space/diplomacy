@@ -108,6 +108,7 @@ func (g *Game) Clone() *Game {
 	clone.Units = maps.Clone(g.Units)
 	clone.Orders = maps.Clone(g.Orders)
 	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
+	clone.LastOrderResolution = maps.Clone(g.LastOrderResolution)
 
 	return &clone
 }

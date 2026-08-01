@@ -12,7 +12,7 @@ func TestApplyUnitTransformsRejectsDuplicateDestination(t *testing.T) {
 		testUnit("unit-b", "b"),
 	)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
 		{UnitID: "unit-b", Type: UnitTransformMove, From: "b", To: "c"},
 	})
@@ -25,7 +25,7 @@ func TestApplyUnitTransformsRejectsDuplicateDestination(t *testing.T) {
 func TestApplyUnitTransformsMovesUnit(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "b"},
 	})
 	if err != nil {
@@ -40,7 +40,7 @@ func TestApplyUnitTransformsMovesUnit(t *testing.T) {
 func TestApplyUnitTransformsHoldsUnitInPlace(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformHold, From: "a", To: "a"},
 	})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestApplyUnitTransformsHoldsUnitInPlace(t *testing.T) {
 func TestApplyUnitTransformsRemovesPreviousPosition(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "b"},
 	})
 	if err != nil {
@@ -73,7 +73,7 @@ func TestApplyUnitTransformsDoesNotRemoveUnitThatMovedIntoPreviousPosition(t *te
 		testUnit("unit-b", "b"),
 	)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-b", Type: UnitTransformMove, From: "b", To: "a"},
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
 	})
@@ -92,7 +92,7 @@ func TestApplyUnitTransformsDoesNotRemoveUnitThatMovedIntoPreviousPosition(t *te
 func TestApplyUnitTransformsAddsRetreat(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformRetreat, From: "a"},
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func TestApplyUnitTransformsPreservesRetreatingFleetCoast(t *testing.T) {
 	fleet.Coast = "spa-nc"
 	g := newTransformTestGame(fleet)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: fleet.ID, Type: UnitTransformRetreat, From: "spa", Coast: "spa-nc"},
 	})
 	if err != nil {
@@ -139,7 +139,7 @@ func TestApplyUnitTransformsValidatesBeforeChangingGame(t *testing.T) {
 		testUnit("unit-b", "b"),
 	)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
 		{UnitID: "unit-b", Type: UnitTransformMove, From: "wrong", To: "d"},
 	})
@@ -158,7 +158,7 @@ func TestApplyUnitTransformsRejectsDuplicateUnit(t *testing.T) {
 		testUnit("unit-b", "b"),
 	)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "b"},
 		{UnitID: "unit-a", Type: UnitTransformMove, From: "a", To: "c"},
 	})
@@ -173,7 +173,7 @@ func TestApplyUnitTransformsRequiresResultForEveryUnit(t *testing.T) {
 		testUnit("unit-b", "b"),
 	)
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: UnitTransformHold, From: "a", To: "a"},
 	})
 	if err == nil {
@@ -184,7 +184,7 @@ func TestApplyUnitTransformsRequiresResultForEveryUnit(t *testing.T) {
 func TestApplyUnitTransformsRejectsUnknownType(t *testing.T) {
 	g := newTransformTestGame(testUnit("unit-a", "a"))
 
-	err := g.ApplyUnitTransforms([]UnitTransform{
+	err := g.applyUnitTransforms([]UnitTransform{
 		{UnitID: "unit-a", Type: "unknown", From: "a", To: "a"},
 	})
 	if err == nil {
