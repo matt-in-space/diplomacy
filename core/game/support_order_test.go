@@ -9,7 +9,7 @@ import (
 func TestGameSubmitOrder_AcceptsSupportOrders(t *testing.T) {
 	tests := []struct {
 		name  string
-		order game.Order
+		order game.UnitOrder
 	}{
 		{
 			name:  "support hold",
@@ -33,7 +33,8 @@ func TestGameSubmitOrder_AcceptsSupportOrders(t *testing.T) {
 			if err := g.SubmitOrder(tt.order, gm); err != nil {
 				t.Fatalf("SubmitOrder failed: %v", err)
 			}
-			if got := g.Orders[tt.order.Unit()]; got != tt.order {
+			got, ok := g.OrderFor(tt.order.Unit())
+			if !ok || got != tt.order {
 				t.Fatalf("stored order = %+v, want %+v", got, tt.order)
 			}
 		})

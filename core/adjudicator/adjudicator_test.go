@@ -35,7 +35,7 @@ type expectedOutcome struct {
 type scenario struct {
 	name     string
 	units    []unitSpec
-	orders   []game.Order
+	orders   []game.UnitOrder
 	expected []expectedOutcome // List of expected outcomes per unit.
 }
 
@@ -64,7 +64,7 @@ func TestResolve_Movement(t *testing.T) {
 			units: []unitSpec{
 				army("fra-a-par", "fra", "par"),
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 			},
 			expected: []expectedOutcome{
@@ -77,7 +77,7 @@ func TestResolve_Movement(t *testing.T) {
 				army("fra-a-par", "fra", "par"),
 				army("fra-a-gas", "fra", "gas"),
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 				game.NewMoveOrder("fra-a-gas", "fra", "par", ""),
 			},
@@ -95,7 +95,7 @@ func TestResolve_Movement(t *testing.T) {
 				army("fra-a-bre", "fra", "bre"),
 				army("fra-a-gas", "fra", "gas"),
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "bre", ""),
 				game.NewMoveOrder("fra-a-bre", "fra", "gas", ""),
 				game.NewMoveOrder("fra-a-gas", "fra", "par", ""),
@@ -118,7 +118,7 @@ func TestResolve_Strength(t *testing.T) {
 				army("fra-a-par", "fra", "par"), // Attacker
 				army("eng-a-gas", "eng", "gas"), // Defender
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 				game.NewHoldOrder("eng-a-gas", "eng"),
 			},
@@ -141,7 +141,7 @@ func TestResolve_Support(t *testing.T) {
 				army("fra-a-par", "fra", "par"), // Supported unit
 				army("fra-a-gas", "fra", "gas"), // Supporting unit
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewHoldOrder("fra-a-par", "fra"),
 				game.NewSupportHoldOrder("fra-a-gas", "fra", "fra-a-par", "par"),
 			},
@@ -156,7 +156,7 @@ func TestResolve_Support(t *testing.T) {
 				army("fra-a-par", "fra", "par"), // Supported unit
 				army("fra-a-bre", "fra", "bre"), // Supporting unit
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""),
 			},
@@ -171,7 +171,7 @@ func TestResolve_Support(t *testing.T) {
 				army("fra-a-gas", "fra", "gas"), // Supported unit
 				army("fra-a-bre", "fra", "bre"), // Supporting unit
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-gas", "fra", "spa", ""),                     // Moves to 'spa'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-gas", "par", ""), // Supports a move to 'par' instead
 			},
@@ -186,7 +186,7 @@ func TestResolve_Support(t *testing.T) {
 				army("fra-a-par", "fra", "par"), // Supported unit
 				army("fra-a-bre", "fra", "bre"), // Supporting unit
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewHoldOrder("fra-a-par", "fra"),
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""),
 			},
@@ -203,7 +203,7 @@ func TestResolve_Support(t *testing.T) {
 				army("eng-a-gas", "eng", "gas"),         // Defender
 				fleet("eng-f-eng", "eng", "eng", "eng"), // Cutter (attacks the supporter from the channel)
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported attack on 'gas'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support move to 'gas'
 				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender holds
@@ -225,7 +225,7 @@ func TestResolve_Support(t *testing.T) {
 				army("eng-a-gas", "eng", "gas"),         // Defender
 				fleet("fra-f-eng", "fra", "eng", "eng"), // Own-nation unit attacking its own supporter
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported attack on 'gas'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support move to 'gas'
 				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender holds
@@ -246,7 +246,7 @@ func TestResolve_Support(t *testing.T) {
 				army("fra-a-bre", "fra", "bre"), // Supporting unit
 				army("eng-a-gas", "eng", "gas"), // Attacker targeting supporter
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Supported unit moves to 'gas'
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support move to 'gas'
 				game.NewMoveOrder("eng-a-gas", "eng", "bre", ""),                     // Foreign attacker moves to 'bre' (supporter's province)
@@ -274,7 +274,7 @@ func TestResolve_Dislodgement(t *testing.T) {
 				army("fra-a-bre", "fra", "bre"), // Support
 				army("eng-a-gas", "eng", "gas"), // Defender
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Attacker (strength 1 initially)
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support for move to gas
 				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender (strength 1)
@@ -294,7 +294,7 @@ func TestResolve_Dislodgement(t *testing.T) {
 				army("fra-a-par", "fra", "par"), // Attacker
 				army("eng-a-gas", "eng", "gas"), // Defender
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),
 				game.NewHoldOrder("eng-a-gas", "eng"),
 			},
@@ -311,7 +311,7 @@ func TestResolve_Dislodgement(t *testing.T) {
 				army("eng-a-gas", "eng", "gas"), // Defender
 				army("eng-a-spa", "eng", "spa"), // Support for defender
 			},
-			orders: []game.Order{
+			orders: []game.UnitOrder{
 				game.NewMoveOrder("fra-a-par", "fra", "gas", ""),                     // Attacker (strength 1 initially)
 				game.NewSupportMoveOrder("fra-a-bre", "fra", "fra-a-par", "gas", ""), // Support for move to 'gas'
 				game.NewHoldOrder("eng-a-gas", "eng"),                                // Defender (strength 1)
@@ -378,7 +378,7 @@ func newScenarioGame(t *testing.T, gm *gamemap.GameMap, units []unitSpec) *game.
 	// Manually populate game state for the scenario.
 	// Clear any default units that might be created by NewGame (unlikely with the config used, but good practice).
 	g.Units = make(map[game.UnitID]game.Unit, len(units))
-	g.Orders = make(map[game.UnitID]game.Order) // Ensure orders map is empty for scenario
+	g.Orders = nil // Ensure orders are empty for scenario
 
 	occupied := make(map[gamemap.ProvinceID]struct{}, len(units))
 	for _, spec := range units {
@@ -410,7 +410,7 @@ func newScenarioGame(t *testing.T, gm *gamemap.GameMap, units []unitSpec) *game.
 }
 
 // submitOrders submits all provided orders to the game.
-func submitOrders(t *testing.T, g *game.Game, gm *gamemap.GameMap, orders ...game.Order) {
+func submitOrders(t *testing.T, g *game.Game, gm *gamemap.GameMap, orders ...game.UnitOrder) {
 	t.Helper()
 
 	for _, order := range orders {

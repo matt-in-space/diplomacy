@@ -6,14 +6,11 @@ import (
 
 // A HoldOrder holds a unit in place, preventing it from moving.
 type HoldOrder struct {
-	BaseOrder
+	BaseUnitOrder
 }
 
 func NewHoldOrder(unit UnitID, nation gamemap.NationID) HoldOrder {
 	return HoldOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
 	}
 }

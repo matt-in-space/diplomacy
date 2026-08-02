@@ -79,9 +79,10 @@ func dislodgedUnits(g *game.Game) map[game.UnitID]game.Unit {
 func categorizeRetreatOrders(g *game.Game, dislodged map[game.UnitID]game.Unit) (map[game.UnitID]game.RetreatOrder, map[game.UnitID]game.Order) {
 	retreats := make(map[game.UnitID]game.RetreatOrder)
 	disbands := make(map[game.UnitID]game.Order)
+	unitOrders := g.UnitOrders()
 
 	for id, unit := range dislodged {
-		order, ok := g.Orders[id]
+		order, ok := unitOrders[id]
 		if !ok {
 			order = game.NewDisbandOrder(id, unit.NationID)
 		}

@@ -30,7 +30,7 @@ type resolutionContext struct {
 	currentPositions map[gamemap.ProvinceID]game.UnitID
 
 	// allOrders holds every unit's order (submitted, or a defaulted hold).
-	allOrders map[game.UnitID]game.Order
+	allOrders map[game.UnitID]game.UnitOrder
 
 	// Categorized orders
 	moveOrders        map[game.UnitID]game.MoveOrder
@@ -66,7 +66,7 @@ func newResolutionContext(g *game.Game, gm *gamemap.GameMap) resolutionContext {
 		gm:                         gm,
 		units:                      units,
 		currentPositions:           positionIndex(units),
-		allOrders:                  maps.Clone(g.Orders),
+		allOrders:                  g.UnitOrders(),
 		moveOrders:                 make(map[game.UnitID]game.MoveOrder),
 		holdOrders:                 make(map[game.UnitID]game.HoldOrder),
 		supportHoldOrders:          make(map[game.UnitID]game.SupportHoldOrder),
@@ -194,7 +194,7 @@ func (rc *resolutionContext) pruneMisalignedOrders() {
 
 // demoteToHold records a failed outcome for an order and makes the unit hold in
 // place, so it still participates in resolution as a holder.
-func (rc *resolutionContext) demoteToHold(order game.Order, reason game.ReasonCode) {
+func (rc *resolutionContext) demoteToHold(order game.UnitOrder, reason game.ReasonCode) {
 	id := order.Unit()
 	rc.effectiveHoldOrders[id] = game.NewHoldOrder(id, order.Nation())
 	rc.orderOutcomes[id] = game.CreateOrderFailOutcome(order, reason)

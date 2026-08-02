@@ -8,17 +8,14 @@ import (
 
 // A SupportHoldOrder supports another unit holding its current province.
 type SupportHoldOrder struct {
-	BaseOrder
+	BaseUnitOrder
 	SupportedUnit UnitID
 	Target        gamemap.ProvinceID
 }
 
 func NewSupportHoldOrder(unit UnitID, nation gamemap.NationID, supportedUnit UnitID, target gamemap.ProvinceID) SupportHoldOrder {
 	return SupportHoldOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
 		Target:        target,
 		SupportedUnit: supportedUnit,
 	}
@@ -26,7 +23,7 @@ func NewSupportHoldOrder(unit UnitID, nation gamemap.NationID, supportedUnit Uni
 
 // A SupportMoveOrder supports another unit moving to a target province.
 type SupportMoveOrder struct {
-	BaseOrder
+	BaseUnitOrder
 	SupportedUnit UnitID
 	Target        gamemap.ProvinceID
 	TargetCoast   gamemap.CoastID
@@ -34,10 +31,7 @@ type SupportMoveOrder struct {
 
 func NewSupportMoveOrder(unit UnitID, nation gamemap.NationID, supportedUnit UnitID, target gamemap.ProvinceID, targetCoast gamemap.CoastID) SupportMoveOrder {
 	return SupportMoveOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
 		SupportedUnit: supportedUnit,
 		Target:        target,
 		TargetCoast:   targetCoast,

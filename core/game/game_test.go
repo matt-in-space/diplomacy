@@ -121,7 +121,7 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	fleet := clone.Units["fra-fleet-bre-start"]
 	fleet.Coast = "changed-coast"
 	clone.Units[fleet.ID] = fleet
-	clone.Orders["fra-army-par-start"] = game.NewHoldOrder("fra-army-par-start", "fra")
+	clone.Orders = append(clone.Orders, game.NewHoldOrder("fra-army-par-start", "fra"))
 	delete(clone.LastOrderResolution, "sentinel")
 	delete(clone.LastRetreatResolution, "sentinel")
 	clone.SupplyCenterOwners["par"] = "eng"
@@ -135,7 +135,7 @@ func TestGameCloneCopiesReferenceState(t *testing.T) {
 	if got := g.Units["fra-fleet-bre-start"].Coast; got != "bre" {
 		t.Fatalf("original fleet coast = %q, want bre", got)
 	}
-	if _, ok := g.Orders["fra-army-par-start"]; ok {
+	if _, ok := g.OrderFor("fra-army-par-start"); ok {
 		t.Fatal("clone order was added to original game")
 	}
 	if _, ok := g.LastOrderResolution["sentinel"]; !ok {

@@ -26,7 +26,7 @@ func rFleet(id game.UnitID, nation gamemap.NationID, from gamemap.ProvinceID, co
 
 // newRetreatTestGame builds a game with the given dislodged units (plus any
 // on-board units, e.g. an occupant blocking a target) and orders.
-func newRetreatTestGame(gm *gamemap.GameMap, dislodged []retreatUnit, onBoard []testUnit, orders ...game.Order) *game.Game {
+func newRetreatTestGame(gm *gamemap.GameMap, dislodged []retreatUnit, onBoard []testUnit, orders ...game.UnitOrder) *game.Game {
 	g := newTestGame(gm, onBoard, orders...)
 	for _, u := range dislodged {
 		unit := game.Unit{ID: u.id, NationID: u.nation, Type: u.kind, DislodgedFrom: u.dislodgedFrom}

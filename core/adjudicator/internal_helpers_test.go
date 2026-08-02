@@ -27,11 +27,10 @@ func tFleet(id game.UnitID, nation gamemap.NationID, province gamemap.ProvinceID
 
 // newTestGame builds a game directly from unit specs and orders. It bypasses
 // SubmitOrder validation so stage tests can construct arbitrary board states.
-func newTestGame(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) *game.Game {
+func newTestGame(gm *gamemap.GameMap, units []testUnit, orders ...game.UnitOrder) *game.Game {
 	g := &game.Game{
-		MapID:  gm.ID,
-		Units:  make(map[game.UnitID]game.Unit, len(units)),
-		Orders: make(map[game.UnitID]game.Order, len(orders)),
+		MapID: gm.ID,
+		Units: make(map[game.UnitID]game.Unit, len(units)),
 	}
 
 	for _, u := range units {
@@ -43,14 +42,14 @@ func newTestGame(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) *g
 	}
 
 	for _, o := range orders {
-		g.Orders[o.Unit()] = o
+		g.Orders = append(g.Orders, o)
 	}
 
 	return g
 }
 
 // prunedContext builds a context and runs the pipeline through pruning.
-func prunedContext(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) resolutionContext {
+func prunedContext(gm *gamemap.GameMap, units []testUnit, orders ...game.UnitOrder) resolutionContext {
 	rc := newResolutionContext(newTestGame(gm, units, orders...), gm)
 	rc.normalizeOrders()
 	rc.categorizeOrders()

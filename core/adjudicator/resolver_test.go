@@ -8,7 +8,7 @@ import (
 )
 
 // resolvedOutcomes runs the full pipeline and returns the final outcomes.
-func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.Order) map[game.UnitID]game.Outcome {
+func resolvedOutcomes(gm *gamemap.GameMap, units []testUnit, orders ...game.UnitOrder) map[game.UnitID]game.Outcome {
 	rc := newResolutionContext(newTestGame(gm, units, orders...), gm)
 	rc.normalizeOrders()
 	rc.categorizeOrders()

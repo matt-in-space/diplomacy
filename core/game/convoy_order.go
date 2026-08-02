@@ -8,7 +8,7 @@ import (
 
 // A ConvoyOrder orders a fleet in a water province to convoy an army from one coastal province to another.
 type ConvoyOrder struct {
-	BaseOrder
+	BaseUnitOrder
 	ConvoyedUnit UnitID
 	From         gamemap.ProvinceID
 	To           gamemap.ProvinceID
@@ -16,13 +16,10 @@ type ConvoyOrder struct {
 
 func NewConvoyOrder(unit UnitID, nation gamemap.NationID, convoyedUnit UnitID, from gamemap.ProvinceID, to gamemap.ProvinceID) ConvoyOrder {
 	return ConvoyOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
-		ConvoyedUnit: convoyedUnit,
-		From:         from,
-		To:           to,
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
+		ConvoyedUnit:  convoyedUnit,
+		From:          from,
+		To:            to,
 	}
 }
 

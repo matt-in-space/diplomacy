@@ -16,7 +16,8 @@ func TestGameSubmitOrder_AcceptsConvoyOrder(t *testing.T) {
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
-	if got := g.Orders[order.Unit()]; got != order {
+	got, ok := g.OrderFor(order.Unit())
+	if !ok || got != order {
 		t.Fatalf("stored order = %+v, want %+v", got, order)
 	}
 }

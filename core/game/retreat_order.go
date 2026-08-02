@@ -10,34 +10,28 @@ import (
 // of. It is only valid during the accept retreats phase, for units that were
 // dislodged during the preceding order resolution.
 type RetreatOrder struct {
-	BaseOrder
+	BaseUnitOrder
 	Target      gamemap.ProvinceID
 	TargetCoast gamemap.CoastID
 }
 
 func NewRetreatOrder(unit UnitID, nation gamemap.NationID, target gamemap.ProvinceID, targetCoast gamemap.CoastID) RetreatOrder {
 	return RetreatOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
-		Target:      target,
-		TargetCoast: targetCoast,
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
+		Target:        target,
+		TargetCoast:   targetCoast,
 	}
 }
 
 // A DisbandOrder removes a dislodged unit from the game instead of retreating
 // it, either by player choice or because no legal retreat exists.
 type DisbandOrder struct {
-	BaseOrder
+	BaseUnitOrder
 }
 
 func NewDisbandOrder(unit UnitID, nation gamemap.NationID) DisbandOrder {
 	return DisbandOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
 	}
 }
 

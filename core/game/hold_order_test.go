@@ -15,7 +15,7 @@ func TestGameSubmitOrder_AcceptsHoldOrder(t *testing.T) {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
 
-	got, ok := g.Orders["fra-army-par-start"]
+	got, ok := g.OrderFor("fra-army-par-start")
 	if !ok {
 		t.Fatalf("expected order to be stored")
 	}

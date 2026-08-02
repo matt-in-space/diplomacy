@@ -60,7 +60,7 @@ func TestGameCompleteOrderResolution(t *testing.T) {
 	g.Turn.Phase = game.ResolveOrders
 	g.CommittedOrders["eng"] = struct{}{}
 	g.CommittedOrders["fra"] = struct{}{}
-	g.Orders["eng-fleet-lon-start"] = game.NewHoldOrder("eng-fleet-lon-start", "eng")
+	g.Orders = append(g.Orders, game.NewHoldOrder("eng-fleet-lon-start", "eng"))
 
 	if err := g.CompleteOrderResolution(holdResolution(g)); err != nil {
 		t.Fatalf("CompleteOrderResolution failed: %v", err)
@@ -90,7 +90,7 @@ func TestGameCompleteOrderResolutionPreservesLifecycleStateWhenTransformsFail(t 
 	g := newWesternEuropeGame(t, gm)
 	g.Turn.Phase = game.ResolveOrders
 	g.CommittedOrders["eng"] = struct{}{}
-	g.Orders["eng-fleet-lon-start"] = game.NewHoldOrder("eng-fleet-lon-start", "eng")
+	g.Orders = append(g.Orders, game.NewHoldOrder("eng-fleet-lon-start", "eng"))
 
 	if g.Turn.Phase != game.ResolveOrders {
 		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.ResolveOrders)
@@ -98,7 +98,7 @@ func TestGameCompleteOrderResolutionPreservesLifecycleStateWhenTransformsFail(t 
 	if _, ok := g.CommittedOrders["eng"]; !ok {
 		t.Fatal("CommittedOrders was cleared after failed transforms")
 	}
-	if _, ok := g.Orders["eng-fleet-lon-start"]; !ok {
+	if _, ok := g.OrderFor("eng-fleet-lon-start"); !ok {
 		t.Fatal("Orders was cleared after failed transforms")
 	}
 }

@@ -40,7 +40,8 @@ func TestGameSubmitOrder_AcceptsMoveOrder(t *testing.T) {
 			if err := g.SubmitOrder(tt.order, gm); err != nil {
 				t.Fatalf("SubmitOrder failed: %v", err)
 			}
-			if got := g.Orders[tt.order.Unit()]; got != tt.order {
+			got, ok := g.OrderFor(tt.order.Unit())
+			if !ok || got != tt.order {
 				t.Fatalf("stored order = %+v, want %+v", got, tt.order)
 			}
 		})
@@ -56,7 +57,8 @@ func TestGameSubmitOrder_AcceptsConvoyedMoveOrder(t *testing.T) {
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
-	if got := g.Orders[order.Unit()]; got != order {
+	got, ok := g.OrderFor(order.Unit())
+	if !ok || got != order {
 		t.Fatalf("stored order = %+v, want %+v", got, order)
 	}
 }
@@ -110,7 +112,10 @@ func TestGameSubmitOrder_RejectsInvalidConvoyedMoveOrders(t *testing.T) {
 				addArmy(t, g, "eng-army-gas-test", "eng", "gas")
 			},
 			order: game.MoveOrder{
-				BaseOrder:   game.BaseOrder{UnitID: "eng-army-gas-test", NationID: "eng"},
+				BaseUnitOrder: game.BaseUnitOrder{
+					BaseOrder: game.BaseOrder{NationID: "eng"},
+					UnitID:    "eng-army-gas-test",
+				},
 				Target:      "lon",
 				TargetCoast: "lon",
 				ViaConvoy:   true,

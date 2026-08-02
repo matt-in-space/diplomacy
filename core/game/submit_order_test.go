@@ -11,19 +11,26 @@ func TestGameSubmitOrder_ReplacesExistingOrder(t *testing.T) {
 	gm := loadWesternEuropeMap(t)
 	g := newWesternEuropeGame(t, gm)
 	unitID := game.UnitID("fra-army-par-start")
-	g.Orders[unitID] = testOrder{unitID: unitID, nationID: "fra"}
+	g.Orders = append(g.Orders, testOrder{unitID: unitID, nationID: "fra"})
 
 	order := game.NewHoldOrder(unitID, "fra")
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
 
-	got, ok := g.Orders[unitID].(game.HoldOrder)
+	stored, ok := g.OrderFor(unitID)
 	if !ok {
-		t.Fatalf("expected replacement order to be HoldOrder, got %T", g.Orders[unitID])
+		t.Fatalf("expected an order for unit %q", unitID)
+	}
+	got, ok := stored.(game.HoldOrder)
+	if !ok {
+		t.Fatalf("expected replacement order to be HoldOrder, got %T", stored)
 	}
 	if got != order {
 		t.Fatalf("stored order = %+v, want %+v", got, order)
+	}
+	if len(g.Orders) != 1 {
+		t.Fatalf("Orders length = %d, want 1 (replaced, not appended)", len(g.Orders))
 	}
 }
 
@@ -142,7 +149,6 @@ func retreatScenarioGame(gm *gamemap.GameMap) *game.Game {
 				Order:  game.CreateOrderSuccessOutcome(game.NewMoveOrder("eng-army-attacker", "eng", "par", "")),
 			},
 		},
-		Orders:          make(map[game.UnitID]game.Order),
 		CommittedOrders: make(map[gamemap.NationID]struct{}),
 	}
 }
@@ -155,9 +161,13 @@ func TestGameSubmitOrder_AcceptsRetreatOrder(t *testing.T) {
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
-	got, ok := g.Orders[order.Unit()].(game.RetreatOrder)
+	stored, ok := g.OrderFor(order.Unit())
 	if !ok {
-		t.Fatalf("expected stored order to be RetreatOrder, got %T", g.Orders[order.Unit()])
+		t.Fatalf("expected an order for unit %q", order.Unit())
+	}
+	got, ok := stored.(game.RetreatOrder)
+	if !ok {
+		t.Fatalf("expected stored order to be RetreatOrder, got %T", stored)
 	}
 	if got != order {
 		t.Fatalf("stored order = %+v, want %+v", got, order)
@@ -172,8 +182,12 @@ func TestGameSubmitOrder_AcceptsDisbandOrder(t *testing.T) {
 	if err := g.SubmitOrder(order, gm); err != nil {
 		t.Fatalf("SubmitOrder failed: %v", err)
 	}
-	if _, ok := g.Orders[order.Unit()].(game.DisbandOrder); !ok {
-		t.Fatalf("expected stored order to be DisbandOrder, got %T", g.Orders[order.Unit()])
+	stored, ok := g.OrderFor(order.Unit())
+	if !ok {
+		t.Fatalf("expected an order for unit %q", order.Unit())
+	}
+	if _, ok := stored.(game.DisbandOrder); !ok {
+		t.Fatalf("expected stored order to be DisbandOrder, got %T", stored)
 	}
 }
 

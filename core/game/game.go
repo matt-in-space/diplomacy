@@ -21,7 +21,7 @@ type Game struct {
 	Assignments           map[gamemap.NationID]PlayerID
 	Turn                  Turn
 	Units                 map[UnitID]Unit
-	Orders                map[UnitID]Order
+	Orders                []Order
 	CommittedOrders       map[gamemap.NationID]struct{}
 	LastOrderResolution   Resolution
 	LastRetreatResolution Resolution
@@ -39,7 +39,6 @@ func NewGame(cfg NewGameConfig, gm *gamemap.GameMap) (*Game, error) {
 		Assignments:           make(map[gamemap.NationID]PlayerID, len(cfg.Assignments)),
 		Turn:                  StartingTurn(),
 		Units:                 make(map[UnitID]Unit, len(gm.StartingUnits)),
-		Orders:                make(map[UnitID]Order),
 		CommittedOrders:       make(map[gamemap.NationID]struct{}),
 		LastOrderResolution:   Resolution{},
 		LastRetreatResolution: Resolution{},
@@ -116,11 +115,38 @@ func (g *Game) Clone() *Game {
 	clone := *g
 	clone.Assignments = maps.Clone(g.Assignments)
 	clone.Units = maps.Clone(g.Units)
-	clone.Orders = maps.Clone(g.Orders)
+	clone.Orders = slices.Clone(g.Orders)
 	clone.CommittedOrders = maps.Clone(g.CommittedOrders)
 	clone.LastOrderResolution = maps.Clone(g.LastOrderResolution)
 	clone.LastRetreatResolution = maps.Clone(g.LastRetreatResolution)
 	clone.SupplyCenterOwners = maps.Clone(g.SupplyCenterOwners)
 
 	return &clone
+}
+
+// OrderFor returns the order submitted for a unit, if any.
+func (g *Game) OrderFor(id UnitID) (UnitOrder, bool) {
+	for _, order := range g.Orders {
+		unitOrder, ok := order.(UnitOrder)
+		if !ok {
+			continue
+		}
+		if unitOrder.Unit() == id {
+			return unitOrder, true
+		}
+	}
+	return nil, false
+}
+
+// UnitOrders indexes every submitted order that acts on a unit, by unit.
+func (g *Game) UnitOrders() map[UnitID]UnitOrder {
+	orders := make(map[UnitID]UnitOrder, len(g.Orders))
+	for _, order := range g.Orders {
+		unitOrder, ok := order.(UnitOrder)
+		if !ok {
+			continue
+		}
+		orders[unitOrder.Unit()] = unitOrder
+	}
+	return orders
 }

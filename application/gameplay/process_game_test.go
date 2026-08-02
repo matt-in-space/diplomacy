@@ -34,7 +34,7 @@ func TestGameplayServiceProcessGameWaitsForCommittedOrders(t *testing.T) {
 func TestGameplayServiceProcessGameProcessesReadyOrders(t *testing.T) {
 	g := repositoryTestGame("test-game")
 	g.CommittedOrders["eng"] = struct{}{}
-	g.Orders["unit-a"] = game.NewHoldOrder("unit-a", "eng")
+	g.Orders = append(g.Orders, game.NewHoldOrder("unit-a", "eng"))
 	games := &processGameRepository{
 		stored: StoredGame{Game: g, Version: 3},
 	}
@@ -141,7 +141,7 @@ func TestGameplayServiceProcessGameReturnsResolutionError(t *testing.T) {
 	g := repositoryTestGame("test-game")
 	g.Turn.Phase = game.ResolveOrders
 	g.CommittedOrders["eng"] = struct{}{}
-	g.Orders["unit-a"] = game.NewHoldOrder("unit-a", "eng")
+	g.Orders = append(g.Orders, game.NewHoldOrder("unit-a", "eng"))
 	games := &processGameRepository{
 		stored: StoredGame{Game: g, Version: 0},
 	}

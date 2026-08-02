@@ -48,10 +48,18 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   `LegalRetreats` derives retreat legality — no separate stored state, since
   both are plain reads of `SupplyCenterOwners`/`Units` that can't drift from
   their sources.
-- Still needed: build/disband order types and validation, `AcceptAdjustments`/
+- `Order` now requires only `Nation()`; `UnitOrder` (`Order` plus `Unit()`)
+  names the subset — every existing order type — that acts on a unit already
+  on the board. `Game.Orders` is a slice rather than a `map[UnitID]Order`, so
+  a unit-less order has somewhere to live; `Game.OrderFor`/`Game.UnitOrders`
+  derive the by-unit lookups movement, retreats, and the adjudicator need.
+  This clears the way for a `BuildOrder`, which creates a unit rather than
+  naming one.
+- Still needed: `BuildOrder` itself and its validation, `AcceptAdjustments`/
   `ResolveAdjustments` phase wiring, and forced disbands when a nation
-  under-orders. `Order` requiring `Unit() UnitID` doesn't accommodate a build
-  order with no unit yet — that needs resolving as part of this work.
+  under-orders. Adjustment orders are validated as a set against a nation's
+  `AdjustmentBalance`, unlike movement/retreat orders which are each
+  independently valid — `SubmitOrder`'s one-at-a-time shape may not fit as-is.
 - Victory condition (18 supply centers) and game-over/draw handling.
 
 ## Application layer (`application/gameplay`)

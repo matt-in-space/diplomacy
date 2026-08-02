@@ -10,7 +10,7 @@ import (
 // A MoveOrder moves a unit from one location to another. If the target province is occupied by a
 // unit of a different nation it is considered an attack order.
 type MoveOrder struct {
-	BaseOrder
+	BaseUnitOrder
 	Target      gamemap.ProvinceID
 	TargetCoast gamemap.CoastID
 	ViaConvoy   bool
@@ -18,23 +18,17 @@ type MoveOrder struct {
 
 func NewMoveOrder(unit UnitID, nation gamemap.NationID, target gamemap.ProvinceID, targetCoast gamemap.CoastID) MoveOrder {
 	return MoveOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
-		Target:      target,
-		TargetCoast: targetCoast,
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
+		Target:        target,
+		TargetCoast:   targetCoast,
 	}
 }
 
 func NewConvoyedMoveOrder(unit UnitID, nation gamemap.NationID, target gamemap.ProvinceID) MoveOrder {
 	return MoveOrder{
-		BaseOrder: BaseOrder{
-			UnitID:   unit,
-			NationID: nation,
-		},
-		Target:    target,
-		ViaConvoy: true,
+		BaseUnitOrder: newBaseUnitOrder(unit, nation),
+		Target:        target,
+		ViaConvoy:     true,
 	}
 }
 

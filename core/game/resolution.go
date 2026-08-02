@@ -89,7 +89,7 @@ func (g *Game) CompleteOrderResolution(res Resolution) error {
 	}
 
 	g.CommittedOrders = make(map[gamemap.NationID]struct{})
-	g.Orders = make(map[UnitID]Order)
+	g.Orders = nil
 	g.LastOrderResolution = res
 	g.Turn = g.Turn.Next()
 
@@ -146,7 +146,7 @@ func (g *Game) CompleteRetreatResolution(res Resolution) error {
 	}
 
 	g.CommittedOrders = make(map[gamemap.NationID]struct{})
-	g.Orders = make(map[UnitID]Order)
+	g.Orders = nil
 	g.LastRetreatResolution = res
 	g.Turn = g.Turn.Next()
 

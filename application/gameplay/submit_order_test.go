@@ -122,7 +122,8 @@ func TestGameplayServiceSubmitOrder(t *testing.T) {
 	if games.savedExpectedVersion != cmd.ExpectedVersion {
 		t.Fatalf("SaveGame expected version = %d, want %d", games.savedExpectedVersion, cmd.ExpectedVersion)
 	}
-	if got := games.savedGame.Orders["unit-a"]; got != order {
+	got, ok := games.savedGame.OrderFor("unit-a")
+	if !ok || got != order {
 		t.Fatalf("saved order = %+v, want %+v", got, order)
 	}
 }
