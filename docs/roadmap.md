@@ -3,8 +3,10 @@
 ## Status
 
 Movement and retreats are fully implemented end to end: order submission and
-validation, adjudication, and phase transitions. Adjustments (builds/disbands)
-and supply-center ownership are not started. There is no web/HTTP layer — the
+validation, adjudication, and phase transitions. Supply-center ownership
+tracking and the adjustment query surface (who owes what, where they may
+build) are in place; build/disband order types and their resolution are not
+started. There is no web/HTTP layer — the
 application layer (`application/gameplay`) exists with in-memory repositories
 only, driven directly by its own tests and `cmd/server`'s minimal wiring.
 
@@ -34,14 +36,22 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   same province are all disbanded — a retreat conflict has no "stay put"
   fallback the way a movement bounce does.
 
-### Adjustments — not started
+### Adjustments — in progress
 
-- Supply-center ownership isn't tracked anywhere yet. Per the rulebook,
-  ownership only updates after **Fall retreats** resolve, not Spring — this
-  needs new state on `Game`, not a value derived on demand.
-- Build/disband order types and validation (builds only at owned, vacant home
-  centers; forced disbands when unit count exceeds supply-center count) and
-  their resolution.
+- `Game.SupplyCenterOwners` tracks ownership, seeded at game creation from the
+  map's home centers and updated by the `UpdateOwnership` phase, which runs
+  once after Fall retreats resolve (not Spring) and never runs otherwise —
+  the season-gating is structural, encoded in `Turn.Next()`, not a runtime
+  check.
+- `Game.AdjustmentBalance` and `Game.LegalBuildProvinces` derive what a
+  nation owes (builds/disbands) and where it may build, the same way
+  `LegalRetreats` derives retreat legality — no separate stored state, since
+  both are plain reads of `SupplyCenterOwners`/`Units` that can't drift from
+  their sources.
+- Still needed: build/disband order types and validation, `AcceptAdjustments`/
+  `ResolveAdjustments` phase wiring, and forced disbands when a nation
+  under-orders. `Order` requiring `Unit() UnitID` doesn't accommodate a build
+  order with no unit yet — that needs resolving as part of this work.
 - Victory condition (18 supply centers) and game-over/draw handling.
 
 ## Application layer (`application/gameplay`)
