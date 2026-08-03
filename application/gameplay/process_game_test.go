@@ -191,9 +191,12 @@ func TestGameplayServiceProcessGameReturnsSaveError(t *testing.T) {
 	}
 }
 
-func TestGameplayServiceProcessGameIgnoresUnsupportedPhase(t *testing.T) {
+func TestGameplayServiceProcessGameWaitsForAdjustmentCommitment(t *testing.T) {
 	g := repositoryTestGame("test-game")
 	g.Turn.Phase = game.AcceptAdjustments
+	// repositoryTestGame has no SupplyCenterOwners set, so eng's balance is
+	// negative (one unit, zero centers) and it owes a disband it hasn't
+	// committed yet.
 	games := &processGameRepository{
 		stored: StoredGame{Game: g, Version: 0},
 	}
@@ -208,6 +211,85 @@ func TestGameplayServiceProcessGameIgnoresUnsupportedPhase(t *testing.T) {
 	}
 	if maps.calls != 0 {
 		t.Fatalf("GetMap calls = %d, want 0", maps.calls)
+	}
+	if g.Turn.Phase != game.AcceptAdjustments {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptAdjustments)
+	}
+}
+
+func TestGameplayServiceProcessGameHaltsOnCompletedPhase(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.Completed
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	if games.saveCalls != 0 {
+		t.Fatalf("SaveGame calls = %d, want 0", games.saveCalls)
+	}
+	if maps.calls != 0 {
+		t.Fatalf("GetMap calls = %d, want 0", maps.calls)
+	}
+}
+
+func TestGameplayServiceProcessGameProcessesAdjustments(t *testing.T) {
+	g := repositoryTestGame("test-game")
+	g.Turn.Phase = game.AcceptAdjustments
+	g.Turn.Season = game.Fall
+	// eng owns two centers (lon, occupied by unit-a; wal, vacant) but has
+	// only one unit, so it's owed a build.
+	g.SupplyCenterOwners = map[gamemap.ProvinceID]gamemap.NationID{
+		"lon": "eng",
+		"wal": "eng",
+	}
+	g.Orders = append(g.Orders, game.NewBuildOrder("eng", "wal", game.UnitTypeArmy, ""))
+	g.CommittedOrders["eng"] = struct{}{}
+	// Captured before ProcessGame runs: the build resolves while Turn.Year is
+	// still 1, before the phase transition into next year's Spring.
+	builtID := g.NextBuildUnitID("eng", game.UnitTypeArmy, "wal")
+	games := &processGameRepository{
+		stored: StoredGame{Game: g, Version: 0},
+	}
+	maps := &processGameMapRepository{gameMap: processGameTestMap()}
+	service := NewGameplayService(games, nil, maps)
+
+	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
+		t.Fatalf("ProcessGame failed: %v", err)
+	}
+	// accept adjustments (commitment already present, advances immediately)
+	// then resolve adjustments: two phases, two saves.
+	if games.saveCalls != 2 {
+		t.Fatalf("SaveGame calls = %d, want 2", games.saveCalls)
+	}
+	if maps.calls != 1 {
+		t.Fatalf("GetMap calls = %d, want 1", maps.calls)
+	}
+	if g.Turn.Phase != game.AcceptOrders {
+		t.Fatalf("Turn.Phase = %q, want %q", g.Turn.Phase, game.AcceptOrders)
+	}
+	if g.Turn.Season != game.Spring {
+		t.Fatalf("Turn.Season = %q, want %q", g.Turn.Season, game.Spring)
+	}
+	if g.Turn.Year != 2 {
+		t.Fatalf("Turn.Year = %d, want 2", g.Turn.Year)
+	}
+	unit, ok := g.Units[builtID]
+	if !ok {
+		t.Fatalf("expected unit %q to exist", builtID)
+	}
+	if unit.NationID != "eng" || unit.ProvinceID != "wal" || unit.Type != game.UnitTypeArmy {
+		t.Fatalf("built unit = %+v, want eng army at wal", unit)
+	}
+	if len(g.CommittedOrders) != 0 {
+		t.Fatalf("CommittedOrders length = %d, want 0", len(g.CommittedOrders))
+	}
+	if len(g.Orders) != 0 {
+		t.Fatalf("Orders length = %d, want 0", len(g.Orders))
 	}
 }
 

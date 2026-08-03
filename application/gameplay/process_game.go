@@ -85,6 +85,25 @@ func (s *GameplayService) processGameStep(g *game.Game) (progressed bool, err er
 			return false, err
 		}
 		return true, nil
+
+	case game.AcceptAdjustments:
+		return g.BeginAdjustmentResolution()
+
+	case game.ResolveAdjustments:
+		gm, err := s.maps.GetMap(g.MapID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get game map %q: %w", g.MapID, err)
+		}
+
+		res, err := adjudicator.ResolveAdjustments(g, gm)
+		if err != nil {
+			return false, fmt.Errorf("failed to resolve adjustments: %w", err)
+		}
+
+		if err := g.CompleteAdjustmentResolution(res); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 
 	return false, nil
