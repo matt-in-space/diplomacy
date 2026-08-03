@@ -21,6 +21,8 @@ func (g *Game) SubmitOrder(order Order, gm *gamemap.GameMap) error {
 		return g.submitMovementOrder(order, gm)
 	case AcceptRetreats:
 		return g.submitRetreatOrder(order, gm)
+	case AcceptAdjustments:
+		return g.submitAdjustmentOrder(order, gm)
 	default:
 		return fmt.Errorf("cannot submit order during phase %q", g.Turn.Phase)
 	}
@@ -139,12 +141,50 @@ func (g *Game) submitRetreatOrder(order Order, gm *gamemap.GameMap) error {
 	return nil
 }
 
+// submitAdjustmentOrder validates and stores a build or disband order. Unlike
+// submitMovementOrder/submitRetreatOrder it can't assert UnitOrder once up
+// front — a BuildOrder has no unit — so each case resolves what it needs.
+func (g *Game) submitAdjustmentOrder(order Order, gm *gamemap.GameMap) error {
+	switch order := order.(type) {
+	case BuildOrder:
+		if err := g.validateBuildOrder(order, gm); err != nil {
+			return err
+		}
+		g.storeBuildOrder(order)
+	case DisbandOrder:
+		unit, err := g.unitForOrder(order)
+		if err != nil {
+			return err
+		}
+		if err := g.validateAdjustmentDisbandOrder(order, unit); err != nil {
+			return err
+		}
+		g.storeOrder(order)
+	default:
+		return fmt.Errorf("unsupported order type %T", order)
+	}
+	return nil
+}
+
 // storeOrder records order, replacing any previously submitted order for the
 // same unit.
 func (g *Game) storeOrder(order UnitOrder) {
 	for i, existing := range g.Orders {
 		unitOrder, ok := existing.(UnitOrder)
 		if ok && unitOrder.Unit() == order.Unit() {
+			g.Orders[i] = order
+			return
+		}
+	}
+	g.Orders = append(g.Orders, order)
+}
+
+// storeBuildOrder records order, replacing any previously submitted build
+// order for the same nation targeting the same province.
+func (g *Game) storeBuildOrder(order BuildOrder) {
+	for i, existing := range g.Orders {
+		build, ok := existing.(BuildOrder)
+		if ok && build.Nation() == order.Nation() && build.ProvinceID == order.ProvinceID {
 			g.Orders[i] = order
 			return
 		}

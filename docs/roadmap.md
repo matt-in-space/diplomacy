@@ -55,11 +55,20 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   derive the by-unit lookups movement, retreats, and the adjudicator need.
   This clears the way for a `BuildOrder`, which creates a unit rather than
   naming one.
-- Still needed: `BuildOrder` itself and its validation, `AcceptAdjustments`/
-  `ResolveAdjustments` phase wiring, and forced disbands when a nation
-  under-orders. Adjustment orders are validated as a set against a nation's
-  `AdjustmentBalance`, unlike movement/retreat orders which are each
-  independently valid — `SubmitOrder`'s one-at-a-time shape may not fit as-is.
+- `BuildOrder` (`core/game/build_order.go`) creates a unit at a home center
+  the nation owns and controls; it satisfies `Order` but not `UnitOrder`,
+  since it names no existing unit. `SubmitOrder` accepts both `BuildOrder`
+  and `DisbandOrder` during `AcceptAdjustments`, checking each against the
+  *sign* of `AdjustmentBalance` (build needs positive, disband needs
+  negative) — the same kind of current-state check `submitRetreatOrder`
+  already does with `unit.Dislodged()`. `DisbandOrder` is reused as-is from
+  retreats; only the precondition differs by phase.
+- Still needed: reconciling submitted order *count* against
+  `AdjustmentBalance` (this is deliberately not checked at submission time —
+  a nation may submit fewer builds than it's owed, or more than makes sense,
+  and nothing rejects that until resolution exists), `BeginAdjustmentResolution`
+  to gate phase advancement, minting `UnitID`s for builds, forced disbands
+  when a nation under-orders, and `ResolveAdjustments` phase wiring.
 - Victory condition (18 supply centers) and game-over/draw handling.
 
 ## Application layer (`application/gameplay`)

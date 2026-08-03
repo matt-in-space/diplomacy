@@ -23,8 +23,9 @@ func NewRetreatOrder(unit UnitID, nation gamemap.NationID, target gamemap.Provin
 	}
 }
 
-// A DisbandOrder removes a dislodged unit from the game instead of retreating
-// it, either by player choice or because no legal retreat exists.
+// A DisbandOrder removes a unit from the game. During AcceptRetreats it
+// disbands a dislodged unit in place of a retreat; during AcceptAdjustments
+// it disbands an on-board unit to satisfy a negative adjustment balance.
 type DisbandOrder struct {
 	BaseUnitOrder
 }
@@ -33,6 +34,19 @@ func NewDisbandOrder(unit UnitID, nation gamemap.NationID) DisbandOrder {
 	return DisbandOrder{
 		BaseUnitOrder: newBaseUnitOrder(unit, nation),
 	}
+}
+
+// validateAdjustmentDisbandOrder checks that a disband order submitted
+// during AcceptAdjustments targets an on-board unit and that the nation
+// currently owes a disband.
+func (g *Game) validateAdjustmentDisbandOrder(order DisbandOrder, unit Unit) error {
+	if unit.Dislodged() {
+		return fmt.Errorf("unit %q is not on the board", unit.ID)
+	}
+	if g.AdjustmentBalance(order.Nation()) >= 0 {
+		return fmt.Errorf("nation %q has no disbands owed", order.Nation())
+	}
+	return nil
 }
 
 // validateRetreatOrder checks that a retreat order's destination is both
