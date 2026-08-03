@@ -101,7 +101,39 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
 - No web/HTTP layer yet. `cmd/server/main.go` only constructs the service and
   loads the test map. Direction for the frontend and API (Svelte SPA, SVG map
   rendering, REST plus a real-time channel for live updates) is captured in
-  `docs/user-experience.md`; nothing there is implemented yet either.
+  `docs/user-experience.md`; nothing there is implemented yet either. The
+  build order for closing this gap is below.
+
+## Next up: auth → game SPA → database
+
+Engine work is paused (see the "Not done" items above) in favor of building
+the application around it. The order is deliberate — each phase is chosen
+to avoid throwaway work in the next one, not just picked for convenience:
+
+1. **Authentication, backed by in-memory repositories.** Self-hosted
+   username + password (bcrypt-hashed), chosen over OAuth for now: no
+   external app registration, fully self-contained, most learning value.
+   `Player` gains `Username`/`PasswordHash` (it's currently just
+   `{ID PlayerID}`); `PlayerRepository` gains a lookup by username; a new
+   `SessionRepository` — same in-memory pattern as the existing repos —
+   maps an opaque cookie token to a `PlayerID`. This is real signup/login/
+   logout logic, not a hardcoded stand-in: the reason to do this first is
+   that it's genuinely reusable once Postgres lands rather than a stub to
+   be thrown away. The login/signup pages are also the first real exercise
+   of the Go-rendered half of the two-flow split described in
+   `docs/user-experience.md`.
+2. **The game SPA**, still against in-memory repositories, built on top of
+   a real session from step 1 rather than a stand-in identity — so nothing
+   here needs revisiting once real auth exists, because it already will.
+   Svelte scoped to the in-game screen, SVG map rendering, REST plus the
+   real-time channel — all per `docs/user-experience.md`.
+3. **Database and infrastructure** — Postgres via Podman, `pgx`/`pgxpool`,
+   `sqlc`, migrations. Deliberately last: `GameRepository`,
+   `PlayerRepository`, `GameMapRepository`, and the new `SessionRepository`
+   are all interfaces specifically so this can be deferred until the shapes
+   of what's actually being persisted are proven out by steps 1-2, instead
+   of designing a schema speculatively. Swapping in a Postgres-backed
+   implementation touches only new files, not anything built in steps 1-2.
 
 ## Known issues
 
