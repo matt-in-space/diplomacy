@@ -18,9 +18,14 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   Convoy) — `core/game`.
 - Adjudication via a recursive backtracking resolver (Kruijswijk's "The Math
   of Adjudication"): holds, moves, bounces/standoffs, support, support-cut,
-  convoys, convoy disruption by dislodgement, circular movement, and convoy
-  paradoxes (Szykman rule) — `core/adjudicator`.
+  convoys, convoy disruption by dislodgement, and circular movement —
+  `core/adjudicator`.
 - See `docs/adjudication-resolver.md` for how the resolver actually works.
+- **Not done:** convoy paradoxes (DATC 6.F, e.g. Pandin's paradox). The
+  Szykman backup rule is the intended fix but isn't wired to the right
+  dependency-cycle node yet — see `docs/adjudication-enhancements.md`. One
+  test (`TestResolve_ConvoyParadox`) documents the intended outcome and is
+  skipped until this lands.
 
 ### Retreats — done
 
@@ -36,7 +41,7 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   same province are all disbanded — a retreat conflict has no "stay put"
   fallback the way a movement bounce does.
 
-### Adjustments — in progress
+### Adjustments — done except civil disorder
 
 - `Game.SupplyCenterOwners` tracks ownership, seeded at game creation from the
   map's home centers and updated by the `UpdateOwnership` phase, which runs
@@ -63,13 +68,24 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   negative) — the same kind of current-state check `submitRetreatOrder`
   already does with `unit.Dislodged()`. `DisbandOrder` is reused as-is from
   retreats; only the precondition differs by phase.
-- Still needed: reconciling submitted order *count* against
-  `AdjustmentBalance` (this is deliberately not checked at submission time —
-  a nation may submit fewer builds than it's owed, or more than makes sense,
-  and nothing rejects that until resolution exists), `BeginAdjustmentResolution`
-  to gate phase advancement, minting `UnitID`s for builds, forced disbands
-  when a nation under-orders, and `ResolveAdjustments` phase wiring.
-- Victory condition (18 supply centers) and game-over/draw handling.
+- `BeginAdjustmentResolution`/`nationsAwaitingAdjustments` gate the phase
+  (mirroring retreats); `adjudicator.ResolveAdjustments` mints `UnitID`s for
+  builds and computes disbands; `CompleteAdjustmentResolution` applies both.
+  A nation may submit fewer builds than its balance allows (waived, legal);
+  submitting more than its balance, in either direction, is an error.
+- **Not done:** civil disorder. A nation with a negative balance that
+  doesn't submit enough disbands to cover it should have units
+  auto-selected for removal (conventionally farthest from home, with a
+  tiebreak) — instead `ResolveAdjustments` currently returns a hard error
+  naming the nation and the shortfall. This also means a passive/departed
+  player can stall a game's processing rather than the game working around
+  them.
+- **Not done at all:** victory condition (18 supply centers) and
+  game-over/draw handling — nothing currently detects that a game has ended.
+- **Not done:** elimination. A nation reduced to zero units and zero supply
+  centers isn't removed from `Assignments` or otherwise marked inactive;
+  every phase's "await commitment" gate still expects it to commit like any
+  other nation.
 
 ## Application layer (`application/gameplay`)
 
@@ -82,8 +98,10 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   `LastRetreatResolution` exist because retreat-legality *rules* need them
   functionally, not for display. A persisted history store belongs at the
   application layer once there's a UI to serve it (see `docs/architecture.md`).
-- No web/HTTP layer. `cmd/server/main.go` only constructs the service and
-  loads the test map.
+- No web/HTTP layer yet. `cmd/server/main.go` only constructs the service and
+  loads the test map. Direction for the frontend and API (Svelte SPA, SVG map
+  rendering, REST plus a real-time channel for live updates) is captured in
+  `docs/user-experience.md`; nothing there is implemented yet either.
 
 ## Known issues
 
