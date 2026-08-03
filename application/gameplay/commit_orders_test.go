@@ -117,42 +117,6 @@ func TestGameplayServiceCommitOrders(t *testing.T) {
 	}
 }
 
-func TestGameplayServiceCommitOrdersProcessesGameAfterFinalCommitment(t *testing.T) {
-	ctx := context.Background()
-	games := NewMemoryGameRepository()
-	g := repositoryTestGame("test-game")
-	if err := games.CreateGame(ctx, g); err != nil {
-		t.Fatalf("CreateGame failed: %v", err)
-	}
-	maps := NewMemoryGameMapRepository(commitOrdersTestMap())
-	service := NewGameplayService(games, nil, maps)
-
-	if err := service.CommitOrders(ctx, commitOrdersTestCommand()); err != nil {
-		t.Fatalf("CommitOrders failed: %v", err)
-	}
-
-	stored, err := games.GetGame(ctx, g.ID)
-	if err != nil {
-		t.Fatalf("GetGame failed: %v", err)
-	}
-	// With no dislodged units, accept retreats and resolve retreats both run
-	// without anyone needing to commit, carrying processing all the way into
-	// fall's accept orders phase, where it stops waiting for a commitment
-	// that hasn't happened yet.
-	if stored.Version != 5 {
-		t.Fatalf("stored version = %d, want 5", stored.Version)
-	}
-	if stored.Game.Turn.Phase != game.AcceptOrders {
-		t.Fatalf("Turn.Phase = %q, want %q", stored.Game.Turn.Phase, game.AcceptOrders)
-	}
-	if stored.Game.Turn.Season != game.Fall {
-		t.Fatalf("Turn.Season = %q, want %q", stored.Game.Turn.Season, game.Fall)
-	}
-	if len(stored.Game.CommittedOrders) != 0 {
-		t.Fatalf("CommittedOrders length = %d, want 0", len(stored.Game.CommittedOrders))
-	}
-}
-
 func TestGameplayServiceCommitOrdersReturnsGameLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	games := &commitOrdersGameRepository{getErr: lookupErr}

@@ -1,4 +1,4 @@
-package gameplay
+package memory
 
 import (
 	"context"
@@ -6,21 +6,22 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/core/game"
 )
 
-type MemoryPlayerRepository struct {
+type PlayerRepository struct {
 	mu      sync.RWMutex
 	players map[game.PlayerID]game.Player
 }
 
-func NewMemoryPlayerRepository() *MemoryPlayerRepository {
-	return &MemoryPlayerRepository{
+func NewPlayerRepository() *PlayerRepository {
+	return &PlayerRepository{
 		players: make(map[game.PlayerID]game.Player),
 	}
 }
 
-func (r *MemoryPlayerRepository) CreatePlayer(ctx context.Context, player *game.Player) error {
+func (r *PlayerRepository) CreatePlayer(ctx context.Context, player *game.Player) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -32,14 +33,14 @@ func (r *MemoryPlayerRepository) CreatePlayer(ctx context.Context, player *game.
 	defer r.mu.Unlock()
 
 	if _, ok := r.players[player.ID]; ok {
-		return fmt.Errorf("%w: %q", ErrPlayerAlreadyExists, player.ID)
+		return fmt.Errorf("%w: %q", gameplay.ErrPlayerAlreadyExists, player.ID)
 	}
 
 	r.players[player.ID] = *player
 	return nil
 }
 
-func (r *MemoryPlayerRepository) GetPlayer(ctx context.Context, id game.PlayerID) (*game.Player, error) {
+func (r *PlayerRepository) GetPlayer(ctx context.Context, id game.PlayerID) (*game.Player, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -49,13 +50,13 @@ func (r *MemoryPlayerRepository) GetPlayer(ctx context.Context, id game.PlayerID
 
 	player, ok := r.players[id]
 	if !ok {
-		return nil, fmt.Errorf("%w: %q", ErrPlayerNotFound, id)
+		return nil, fmt.Errorf("%w: %q", gameplay.ErrPlayerNotFound, id)
 	}
 
 	return &player, nil
 }
 
-func (r *MemoryPlayerRepository) SavePlayer(ctx context.Context, player *game.Player) error {
+func (r *PlayerRepository) SavePlayer(ctx context.Context, player *game.Player) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -67,7 +68,7 @@ func (r *MemoryPlayerRepository) SavePlayer(ctx context.Context, player *game.Pl
 	defer r.mu.Unlock()
 
 	if _, ok := r.players[player.ID]; !ok {
-		return fmt.Errorf("%w: %q", ErrPlayerNotFound, player.ID)
+		return fmt.Errorf("%w: %q", gameplay.ErrPlayerNotFound, player.ID)
 	}
 
 	r.players[player.ID] = *player

@@ -6,15 +6,16 @@ import (
 
 	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
+	"github.com/matt-in-space/diplomacy/infrastructure/memory"
 )
 
 func main() {
 	fmt.Println("Starting new Diplomacy service...")
-	gr := gameplay.NewMemoryGameRepository()
-	pr := gameplay.NewMemoryPlayerRepository()
+	gr := memory.NewGameRepository()
+	pr := memory.NewPlayerRepository()
 
 	maps := loadMaps()
-	mr := gameplay.NewMemoryGameMapRepository(maps...)
+	mr := memory.NewGameMapRepository(maps...)
 
 	s := gameplay.NewGameplayService(gr, pr, mr)
 	_ = s

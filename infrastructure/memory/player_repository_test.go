@@ -1,15 +1,16 @@
-package gameplay
+package memory
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/core/game"
 )
 
-func TestMemoryPlayerRepositoryCreateAndGetPlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryCreateAndGetPlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 	player := &game.Player{ID: "player-a"}
 
 	if err := repo.CreatePlayer(context.Background(), player); err != nil {
@@ -25,30 +26,30 @@ func TestMemoryPlayerRepositoryCreateAndGetPlayer(t *testing.T) {
 	}
 }
 
-func TestMemoryPlayerRepositoryRejectsDuplicatePlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryRejectsDuplicatePlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 	player := &game.Player{ID: "player-a"}
 	ctx := context.Background()
 
 	if err := repo.CreatePlayer(ctx, player); err != nil {
 		t.Fatalf("first Create failed: %v", err)
 	}
-	if err := repo.CreatePlayer(ctx, player); !errors.Is(err, ErrPlayerAlreadyExists) {
+	if err := repo.CreatePlayer(ctx, player); !errors.Is(err, gameplay.ErrPlayerAlreadyExists) {
 		t.Fatalf("second Create error = %v, want ErrPlayerAlreadyExists", err)
 	}
 }
 
-func TestMemoryPlayerRepositoryGetRejectsUnknownPlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryGetRejectsUnknownPlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 
 	_, err := repo.GetPlayer(context.Background(), "missing-player")
-	if !errors.Is(err, ErrPlayerNotFound) {
+	if !errors.Is(err, gameplay.ErrPlayerNotFound) {
 		t.Fatalf("Get error = %v, want ErrPlayerNotFound", err)
 	}
 }
 
-func TestMemoryPlayerRepositorySaveExistingPlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositorySaveExistingPlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 	player := &game.Player{ID: "player-a"}
 	ctx := context.Background()
 
@@ -60,17 +61,17 @@ func TestMemoryPlayerRepositorySaveExistingPlayer(t *testing.T) {
 	}
 }
 
-func TestMemoryPlayerRepositorySaveRejectsUnknownPlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositorySaveRejectsUnknownPlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 
 	err := repo.SavePlayer(context.Background(), &game.Player{ID: "missing-player"})
-	if !errors.Is(err, ErrPlayerNotFound) {
+	if !errors.Is(err, gameplay.ErrPlayerNotFound) {
 		t.Fatalf("Save error = %v, want ErrPlayerNotFound", err)
 	}
 }
 
-func TestMemoryPlayerRepositoryStoresDetachedValues(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryStoresDetachedValues(t *testing.T) {
+	repo := NewPlayerRepository()
 	ctx := context.Background()
 	player := &game.Player{ID: "player-a"}
 
@@ -97,8 +98,8 @@ func TestMemoryPlayerRepositoryStoresDetachedValues(t *testing.T) {
 	}
 }
 
-func TestMemoryPlayerRepositoryRejectsNilPlayer(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryRejectsNilPlayer(t *testing.T) {
+	repo := NewPlayerRepository()
 	ctx := context.Background()
 
 	if err := repo.CreatePlayer(ctx, nil); err == nil {
@@ -109,8 +110,8 @@ func TestMemoryPlayerRepositoryRejectsNilPlayer(t *testing.T) {
 	}
 }
 
-func TestMemoryPlayerRepositoryHonorsCancelledContext(t *testing.T) {
-	repo := NewMemoryPlayerRepository()
+func TestPlayerRepositoryHonorsCancelledContext(t *testing.T) {
+	repo := NewPlayerRepository()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

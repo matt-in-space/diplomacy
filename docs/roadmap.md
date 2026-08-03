@@ -91,8 +91,11 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
 
 - `GameplayService` drives phase transitions (`ProcessGame`/
   `processGameStep`) and exposes `SubmitOrder`/`CommitOrders` commands.
-- `GameRepository`, `GameMapRepository`, and `PlayerRepository` are in-memory
-  only — no database-backed implementation yet.
+- `GameRepository`, `GameMapRepository`, and `PlayerRepository` are
+  interfaces defined here (where they're consumed), per the rule already
+  written in `docs/architecture.md`. Their only implementations so far are
+  in-memory, and now live in `infrastructure/memory` rather than alongside
+  the interfaces — no database-backed implementation yet.
 - No history/audit trail. `Game` intentionally does not persist orders and
   outcomes past the phase that produced them — `LastOrderResolution` and
   `LastRetreatResolution` exist because retreat-legality *rules* need them
@@ -153,10 +156,25 @@ to avoid throwaway work in the next one, not just picked for convenience:
   problem without fighting Go's package model; a real subpackage split would
   mean hoisting `Unit`/`UnitID` into a third leaf package and converting every
   validator into a free function taking `*game.Game`. Undecided.
-- **Repository location.** `application/gameplay` currently holds both use-case
-  logic and the repository interfaces/in-memory implementations in one
-  package. Moving repositories into a dedicated location (matching
-  `docs/architecture.md`'s proposed infrastructure layout) is still open.
+## Resolved design questions
+
+- **Repository location.** In-memory repository implementations
+  (`MemoryGameRepository`, `MemoryPlayerRepository`, `MemoryGameMapRepository`)
+  moved out of `application/gameplay` into `infrastructure/memory`
+  (`GameRepository`, `PlayerRepository`, `GameMapRepository`, "Memory"
+  prefix dropped now that the package name carries that meaning), matching
+  `docs/architecture.md`'s proposed layout and its stated rule that
+  interfaces belong with the application code that consumes them, while
+  implementations belong in infrastructure. The interfaces, `StoredGame`,
+  and the sentinel errors (`ErrGameNotFound`, `ErrPlayerNotFound`, etc.)
+  stayed in `application/gameplay` — they're the contract, not the backend.
+  One wrinkle: `application/gameplay`'s own *internal* tests can't import
+  `infrastructure/memory` (it imports `application/gameplay` to implement
+  its interfaces, so an internal test doing the reverse is a real import
+  cycle, not just a style question — confirmed by `go vet`). The one test
+  that needed real Get/Save round-tripping fidelity (rather than the
+  call-counting fakes used elsewhere) moved to the external
+  `gameplay_test` package, which has no such restriction.
 
 ## Documentation debt
 
