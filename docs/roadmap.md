@@ -101,11 +101,22 @@ only, driven directly by its own tests and `cmd/server`'s minimal wiring.
   `LastRetreatResolution` exist because retreat-legality *rules* need them
   functionally, not for display. A persisted history store belongs at the
   application layer once there's a UI to serve it (see `docs/architecture.md`).
-- No web/HTTP layer yet. `cmd/server/main.go` only constructs the service and
-  loads the test map. Direction for the frontend and API (Svelte SPA, SVG map
-  rendering, REST plus a real-time channel for live updates) is captured in
-  `docs/user-experience.md`; nothing there is implemented yet either. The
-  build order for closing this gap is below.
+- A `web` package now exists and `cmd/server` actually serves HTTP: a
+  stdlib `net/http.ServeMux`, one route (`GET /`, a hello-world page
+  rendered via `html/template`), and Pico.css vendored and served from an
+  embedded static filesystem (`/static/`) — matching the styling and
+  "embed everything into one binary" decisions in `docs/user-experience.md`.
+  Flat for now, no `web/handlers`/`web/middleware` split yet — that's
+  structure worth adding once auth gives it enough route surface to justify
+  it. `GameplayService` is still constructed in `main.go` but not wired to
+  any handler. Fixing this also resolved `cmd/server`'s longstanding
+  relative-path panic: the map fixture is now loaded via `//go:embed` in
+  `core/gamemap` (`gamemap.WesternEurope()`) instead of `os.ReadFile`, so
+  `go run ./cmd/server` works from the repo root. Direction for the rest of
+  the frontend and API (Svelte SPA, SVG map rendering, REST plus a
+  real-time channel for live updates) is captured in
+  `docs/user-experience.md`; none of that is implemented yet. The build
+  order for closing that gap is below.
 
 ## Next up: auth → game SPA → database
 
@@ -140,10 +151,7 @@ to avoid throwaway work in the next one, not just picked for convenience:
 
 ## Known issues
 
-- `cmd/server/main.go` loads its map fixture with a path relative to the
-  working directory, not the source file, so `go run ./cmd/server` from the
-  repo root panics. Run it from inside `cmd/server/` for now
-  (`cd cmd/server && go run .`).
+None currently open.
 
 ## Open design questions
 

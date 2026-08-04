@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
+	"net/http"
 
 	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 	"github.com/matt-in-space/diplomacy/infrastructure/memory"
+	"github.com/matt-in-space/diplomacy/web"
 )
 
 func main() {
-	fmt.Println("Starting new Diplomacy service...")
 	gr := memory.NewGameRepository()
 	pr := memory.NewPlayerRepository()
 
@@ -18,20 +18,19 @@ func main() {
 	mr := memory.NewGameMapRepository(maps...)
 
 	s := gameplay.NewGameplayService(gr, pr, mr)
-	_ = s
-	fmt.Println("Diplomacy service running!")
+	_ = s // not wired to any handler yet — that's the auth/gameplay phase
+
+	mux := web.NewMux()
+
+	const addr = ":8080"
+	log.Printf("Diplomacy server listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
 func loadMaps() []*gamemap.GameMap {
-	data, err := os.ReadFile("../../core/gamemap/testdata/western_europe.json")
+	gm, err := gamemap.WesternEurope()
 	if err != nil {
 		panic(err)
 	}
-
-	gm, err := gamemap.Load(data)
-	if err != nil {
-		panic(err)
-	}
-
 	return []*gamemap.GameMap{gm}
 }
