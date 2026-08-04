@@ -125,17 +125,28 @@ the application around it. The order is deliberate — each phase is chosen
 to avoid throwaway work in the next one, not just picked for convenience:
 
 1. **Authentication, backed by in-memory repositories.** Self-hosted
-   username + password (bcrypt-hashed), chosen over OAuth for now: no
-   external app registration, fully self-contained, most learning value.
-   `Player` gains `Username`/`PasswordHash` (it's currently just
-   `{ID PlayerID}`); `PlayerRepository` gains a lookup by username; a new
-   `SessionRepository` — same in-memory pattern as the existing repos —
-   maps an opaque cookie token to a `PlayerID`. This is real signup/login/
-   logout logic, not a hardcoded stand-in: the reason to do this first is
-   that it's genuinely reusable once Postgres lands rather than a stub to
-   be thrown away. The login/signup pages are also the first real exercise
-   of the Go-rendered half of the two-flow split described in
-   `docs/user-experience.md`.
+   email + password (bcrypt-hashed), chosen over OAuth for now: no external
+   app registration, fully self-contained, most learning value.
+   - **Landed:** the credential-bearing `Player` type and its repository
+     moved to a new `application/auth` package rather than extending
+     `core/game.Player` — the domain layer only ever needs a `PlayerID` to
+     assign nations to, never an email address or password hash.
+     `auth.Player` has `ID`, `Email`, `DisplayName` (shown to other
+     players; `Email` is login-only, never exposed to them),
+     `PasswordHash`, `EmailVerified`, `CreatedAt`, `PasswordChangedAt`.
+     `auth.PlayerRepository` adds `GetPlayerByEmail` alongside
+     `CreatePlayer`/`GetPlayer`/`SavePlayer`, backed by
+     `infrastructure/memory.PlayerRepository` (email uniqueness enforced
+     via a secondary index, `PasswordHash` defensively cloned at repository
+     boundaries the same way `Game` already is). `core/game.Player` (the
+     struct) was removed as dead code in the same pass — nothing in
+     `core/game` ever used more than `PlayerID`. `GameplayService` no
+     longer takes a `PlayerRepository` at all; it never actually used it.
+   - **Still to come:** a new `SessionRepository` (same in-memory pattern)
+     mapping an opaque cookie token to a `PlayerID`; the actual
+     signup/login/logout handlers and bcrypt hashing/verification logic;
+     wiring into the Go-rendered half of the two-flow split described in
+     `docs/user-experience.md`.
 2. **The game SPA**, still against in-memory repositories, built on top of
    a real session from step 1 rather than a stand-in identity — so nothing
    here needs revisiting once real auth exists, because it already will.

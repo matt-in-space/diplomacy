@@ -30,7 +30,7 @@ func TestGameplayServiceCommitOrdersProcessesGameAfterFinalCommitment(t *testing
 		ID:      "test-map",
 		Nations: []gamemap.NationID{"eng"},
 	})
-	service := gameplay.NewGameplayService(games, nil, maps)
+	service := gameplay.NewGameplayService(games, maps)
 
 	cmd := gameplay.CommitOrdersCommand{
 		GameID:          "test-game",

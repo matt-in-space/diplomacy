@@ -88,7 +88,7 @@ func TestGameplayServiceCommitOrders(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &commitOrdersMapRepository{gameMap: commitOrdersTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 	cmd := commitOrdersTestCommand()
 
 	if err := service.CommitOrders(context.Background(), cmd); err != nil {
@@ -121,7 +121,7 @@ func TestGameplayServiceCommitOrdersReturnsGameLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	games := &commitOrdersGameRepository{getErr: lookupErr}
 	maps := &commitOrdersMapRepository{gameMap: commitOrdersTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.CommitOrders(context.Background(), commitOrdersTestCommand())
 	if !errors.Is(err, lookupErr) {
@@ -140,7 +140,7 @@ func TestGameplayServiceCommitOrdersRejectsUnauthorizedPlayer(t *testing.T) {
 		stored: StoredGame{Game: repositoryTestGame("test-game"), Version: 0},
 	}
 	maps := &commitOrdersMapRepository{gameMap: commitOrdersTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 	cmd := commitOrdersTestCommand()
 	cmd.PlayerID = "other-player"
 
@@ -162,7 +162,7 @@ func TestGameplayServiceCommitOrdersReturnsMapLookupError(t *testing.T) {
 		stored: StoredGame{Game: repositoryTestGame("test-game"), Version: 0},
 	}
 	maps := &commitOrdersMapRepository{err: mapErr}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.CommitOrders(context.Background(), commitOrdersTestCommand())
 	if !errors.Is(err, mapErr) {
@@ -180,7 +180,7 @@ func TestGameplayServiceCommitOrdersReturnsCommitError(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &commitOrdersMapRepository{gameMap: commitOrdersTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 	cmd := commitOrdersTestCommand()
 	cmd.NationID = "ita"
 
@@ -200,7 +200,7 @@ func TestGameplayServiceCommitOrdersReturnsSaveError(t *testing.T) {
 		saveErr: saveErr,
 	}
 	maps := &commitOrdersMapRepository{gameMap: commitOrdersTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.CommitOrders(context.Background(), commitOrdersTestCommand())
 	if !errors.Is(err, saveErr) {

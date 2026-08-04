@@ -15,7 +15,7 @@ func TestGameplayServiceProcessGameWaitsForCommittedOrders(t *testing.T) {
 		stored: StoredGame{Game: repositoryTestGame("test-game"), Version: 3},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), "test-game"); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -39,7 +39,7 @@ func TestGameplayServiceProcessGameProcessesReadyOrders(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 3},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -82,7 +82,7 @@ func TestGameplayServiceProcessGameProcessesResolutionPhase(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 6},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -104,7 +104,7 @@ func TestGameplayServiceProcessGameReturnsGameLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	games := &processGameRepository{getErr: lookupErr}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.ProcessGame(context.Background(), "test-game")
 	if !errors.Is(err, lookupErr) {
@@ -126,7 +126,7 @@ func TestGameplayServiceProcessGameReturnsMapLookupError(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{err: mapErr}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.ProcessGame(context.Background(), g.ID)
 	if !errors.Is(err, mapErr) {
@@ -148,7 +148,7 @@ func TestGameplayServiceProcessGameReturnsResolutionError(t *testing.T) {
 	maps := &processGameMapRepository{
 		gameMap: &gamemap.GameMap{ID: "other-map", Nations: []gamemap.NationID{"eng"}},
 	}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.ProcessGame(context.Background(), g.ID)
 	if err == nil || !strings.Contains(err.Error(), "failed to resolve game") {
@@ -177,7 +177,7 @@ func TestGameplayServiceProcessGameReturnsSaveError(t *testing.T) {
 		saveErr: saveErr,
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.ProcessGame(context.Background(), g.ID)
 	if !errors.Is(err, saveErr) {
@@ -201,7 +201,7 @@ func TestGameplayServiceProcessGameWaitsForAdjustmentCommitment(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -224,7 +224,7 @@ func TestGameplayServiceProcessGameHaltsOnCompletedPhase(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -256,7 +256,7 @@ func TestGameplayServiceProcessGameProcessesAdjustments(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -300,7 +300,7 @@ func TestGameplayServiceProcessGameSkipsRetreatsWithNoDislodgements(t *testing.T
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -327,7 +327,7 @@ func TestGameplayServiceProcessGameWaitsForRetreatCommitment(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -349,7 +349,7 @@ func TestGameplayServiceProcessGameProcessesRetreatCommitment(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)
@@ -386,7 +386,7 @@ func TestGameplayServiceProcessGameUpdatesOwnership(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &processGameMapRepository{gameMap: processGameTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	if err := service.ProcessGame(context.Background(), g.ID); err != nil {
 		t.Fatalf("ProcessGame failed: %v", err)

@@ -244,14 +244,18 @@ would be a long detour from getting the game on screen.
 - Exact REST resource/endpoint design for the in-game API — not yet decided.
 - WebSocket message vocabulary/protocol — not yet decided; likely derived
   from the event list above once it's needed.
-- **Authentication: discussed, not concluded.** Leaning toward a server-side
-  session with an opaque cookie (matches `Player`/`Game`/`Map` repository
-  pattern already in this codebase — a `SessionRepository`, in-memory now,
-  swappable later; also the practical choice for the live-update channel,
-  since a browser attaches cookies to a WebSocket handshake automatically
-  but won't attach arbitrary headers to one, so a JWT-in-header approach
-  doesn't get that for free). Credential model itself — self-hosted
-  username/password, OAuth, or something else — is still open.
+- **Authentication: credential model decided, session mechanism not yet
+  built.** Self-hosted email + password, with a separate `DisplayName`
+  shown to other players (email stays login-only) — `application/auth`'s
+  `Player`/`PlayerRepository` (`docs/roadmap.md`'s "Next up" section).
+  Still leaning toward a server-side session with an opaque cookie for the
+  part not yet built (matches the repository pattern already in this
+  codebase — a `SessionRepository`, in-memory now, swappable later; also
+  the practical choice for the live-update channel, since a browser
+  attaches cookies to a WebSocket handshake automatically but won't attach
+  arbitrary headers to one, so a JWT-in-header approach doesn't get that
+  for free) — but the `SessionRepository`, hashing/verification logic, and
+  handlers themselves don't exist yet.
 - Whether the real-time channel is scoped per-game (subscribe to one game's
   updates) or per-player (a player's connection spans however many games
   they're in) — affects connection/subscription design, not yet decided.

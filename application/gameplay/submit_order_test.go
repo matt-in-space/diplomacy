@@ -95,7 +95,7 @@ func TestGameplayServiceSubmitOrder(t *testing.T) {
 	maps := &submitOrderMapRepository{
 		gameMap: submitOrderTestMap(),
 	}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 	order := game.NewHoldOrder("unit-a", "eng")
 	cmd := SubmitOrderCommand{
 		GameID:          g.ID,
@@ -132,7 +132,7 @@ func TestGameplayServiceSubmitOrderReturnsGameLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	games := &submitOrderGameRepository{getErr: lookupErr}
 	maps := &submitOrderMapRepository{gameMap: submitOrderTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.SubmitOrder(context.Background(), submitOrderTestCommand())
 	if !errors.Is(err, lookupErr) {
@@ -151,7 +151,7 @@ func TestGameplayServiceSubmitOrderRejectsUnauthorizedPlayer(t *testing.T) {
 		stored: StoredGame{Game: repositoryTestGame("test-game"), Version: 0},
 	}
 	maps := &submitOrderMapRepository{gameMap: submitOrderTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 	cmd := submitOrderTestCommand()
 	cmd.PlayerID = "other-player"
 
@@ -173,7 +173,7 @@ func TestGameplayServiceSubmitOrderReturnsMapLookupError(t *testing.T) {
 		stored: StoredGame{Game: repositoryTestGame("test-game"), Version: 0},
 	}
 	maps := &submitOrderMapRepository{err: mapErr}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.SubmitOrder(context.Background(), submitOrderTestCommand())
 	if !errors.Is(err, mapErr) {
@@ -191,7 +191,7 @@ func TestGameplayServiceSubmitOrderReturnsOrderValidationError(t *testing.T) {
 		stored: StoredGame{Game: g, Version: 0},
 	}
 	maps := &submitOrderMapRepository{gameMap: submitOrderTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.SubmitOrder(context.Background(), submitOrderTestCommand())
 	if err == nil || !strings.Contains(err.Error(), "failed to submit order") {
@@ -209,7 +209,7 @@ func TestGameplayServiceSubmitOrderReturnsSaveError(t *testing.T) {
 		saveErr: saveErr,
 	}
 	maps := &submitOrderMapRepository{gameMap: submitOrderTestMap()}
-	service := NewGameplayService(games, nil, maps)
+	service := NewGameplayService(games, maps)
 
 	err := service.SubmitOrder(context.Background(), submitOrderTestCommand())
 	if !errors.Is(err, saveErr) {
