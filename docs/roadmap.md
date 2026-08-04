@@ -154,9 +154,35 @@ to avoid throwaway work in the next one, not just picked for convenience:
      has no reference-type fields, so no defensive cloning is needed at the
      repository boundary. Token generation (`crypto/rand`, never anything
      sequential) is the future login handler's job, not the repository's.
-   - **Still to come:** the actual signup/login/logout handlers and bcrypt
-     hashing/verification logic; wiring into the Go-rendered half of the
-     two-flow split described in `docs/user-experience.md`.
+   - **Landed:** `auth.Service` (`application/auth/service.go`) — signup
+     (bcrypt hashing, minimal validation: email shape not deliverability,
+     display name non-empty, 8-char password minimum with no forced
+     complexity, matching current NIST guidance), login (constant-time
+     against an unknown email — still runs a bcrypt comparison against a
+     fixed dummy hash before returning, so response timing doesn't leak
+     which emails are registered; wrong password and unknown email both
+     return the same `ErrInvalidCredentials`), logout, and `Authenticate`
+     (session token → `Player`, used by request middleware). This is the
+     project's first external dependency (`golang.org/x/crypto/bcrypt`) —
+     nothing before this needed anything outside the standard library.
+     `web/` gained `POST /signup`, `POST /login`, `POST /logout`
+     (logout is POST-only deliberately — a state-changing action shouldn't
+     be reachable by a plain link or GET prefetch), a global
+     "populate current player from the session cookie, but never block the
+     request" middleware (`web/session_middleware.go` — optional auth, not
+     a login gate; nothing yet requires being logged in to reach it), and
+     an independent flash-message mechanism (`web/flash.go`) — deliberately
+     not tied to `auth.Session`, since flash needs to work for anonymous
+     flows too ("account created, please log in" happens before any session
+     exists). `cmd/server/main.go`'s repositories stopped being
+     constructed-and-discarded and are wired for real for the first time.
+   - **Still to come (Part 2 — UI):** rendered `GET /signup`/`GET /login`
+     forms: `home.html` gaining conditional "logged in" content (a
+     greeting, a logout button — a small form, not a link, since logout is
+     POST-only) using the now-available current-player context; flash
+     message markup in the templates. A shared layout template becomes
+     worth it once three templates all want the same flash/`<head>`
+     boilerplate — not built speculatively ahead of that.
 2. **The game SPA**, still against in-memory repositories, built on top of
    a real session from step 1 rather than a stand-in identity — so nothing
    here needs revisiting once real auth exists, because it already will.

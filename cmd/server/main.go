@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/matt-in-space/diplomacy/application/auth"
 	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 	"github.com/matt-in-space/diplomacy/infrastructure/memory"
@@ -12,18 +13,17 @@ import (
 
 func main() {
 	gr := memory.NewGameRepository()
-	pr := memory.NewPlayerRepository()  // satisfies auth.PlayerRepository
-	sr := memory.NewSessionRepository() // satisfies auth.SessionRepository
+	pr := memory.NewPlayerRepository()
+	sr := memory.NewSessionRepository()
 
 	maps := loadMaps()
 	mr := memory.NewGameMapRepository(maps...)
 
 	s := gameplay.NewGameplayService(gr, mr)
-	_ = s  // not wired to any handler yet — that's the auth/gameplay phase
-	_ = pr // not wired to any handler yet — that's the auth phase
-	_ = sr // not wired to any handler yet — that's the auth phase
+	_ = s // not wired to any handler yet — that's the game/SPA phase
 
-	mux := web.NewMux()
+	authService := auth.NewService(pr, sr)
+	mux := web.NewMux(authService)
 
 	const addr = ":8080"
 	log.Printf("Diplomacy server listening on %s", addr)

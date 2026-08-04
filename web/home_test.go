@@ -10,7 +10,7 @@ import (
 )
 
 func TestHomeRendersHelloPage(t *testing.T) {
-	mux := web.NewMux()
+	mux := web.NewMux(newTestAuthService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -28,7 +28,7 @@ func TestHomeRendersHelloPage(t *testing.T) {
 }
 
 func TestStaticServesPicoCSS(t *testing.T) {
-	mux := web.NewMux()
+	mux := web.NewMux(newTestAuthService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/static/pico.min.css", nil)
 	rec := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestStaticServesPicoCSS(t *testing.T) {
 }
 
 func TestUnknownStaticFileReturnsNotFound(t *testing.T) {
-	mux := web.NewMux()
+	mux := web.NewMux(newTestAuthService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/static/missing.css", nil)
 	rec := httptest.NewRecorder()
