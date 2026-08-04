@@ -176,13 +176,31 @@ to avoid throwaway work in the next one, not just picked for convenience:
      flows too ("account created, please log in" happens before any session
      exists). `cmd/server/main.go`'s repositories stopped being
      constructed-and-discarded and are wired for real for the first time.
-   - **Still to come (Part 2 — UI):** rendered `GET /signup`/`GET /login`
-     forms: `home.html` gaining conditional "logged in" content (a
-     greeting, a logout button — a small form, not a link, since logout is
-     POST-only) using the now-available current-player context; flash
-     message markup in the templates. A shared layout template becomes
-     worth it once three templates all want the same flash/`<head>`
-     boilerplate — not built speculatively ahead of that.
+   - **Landed:** `GET /signup`/`GET /login` render real forms
+     (`web/templates/signup.html`/`login.html`), and a shared
+     `web/templates/layout.html` now owns the `<head>`, a Pico.css classless
+     `<nav>` (bare `<nav>`/`<ul>` — no extra classes needed), and flash
+     rendering — the point flagged as "worth deciding once three templates
+     want the same boilerplate" arrived and got built. The nav shows the
+     player's `DisplayName` and a logout button (a form, not a link — logout
+     stays POST-only) when logged in, login/signup links otherwise. Each
+     page is its own isolated `*template.Template` (`web/templates.go`'s
+     `parsePage`, combining `layout.html` with exactly one page) rather than
+     one shared parse of every `.html` file — parsing them all together
+     would have every page's `{{define "content"}}` collide in one
+     namespace, so only the last-parsed page's content would ever render.
+     `redirectIfAuthenticated` (`web/session_middleware.go`) sends an
+     already-logged-in visitor away from `/signup`/`/login` back to `/`,
+     applied to the `GET` (view the form) routes only. `web/auth.go`'s POST
+     handlers renamed `handleSignup`/`handleLogin` →
+     `handleSignupSubmit`/`handleLoginSubmit` now that GET counterparts
+     exist. CSRF is already covered for all three POST routes by
+     `SameSite=Lax` on the session/flash cookies (set in Part 1) — nothing
+     new needed for real browser-submitted forms. No per-field inline
+     validation or refilled form values on a failed submit, and no
+     success/error color distinction on flash messages yet (the
+     `class="{{.Kind}}"` hook exists in the markup; the CSS doesn't) —
+     both deliberate, matching "very simple looking."
 2. **The game SPA**, still against in-memory repositories, built on top of
    a real session from step 1 rather than a stand-in identity — so nothing
    here needs revisiting once real auth exists, because it already will.

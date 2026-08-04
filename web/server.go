@@ -23,8 +23,10 @@ func NewMux(authService *auth.Service) http.Handler {
 	mux.HandleFunc("GET /", handleHome)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticRoot)))
 
-	mux.HandleFunc("POST /signup", handleSignup(authService))
-	mux.HandleFunc("POST /login", handleLogin(authService))
+	mux.Handle("GET /signup", redirectIfAuthenticated(http.HandlerFunc(handleSignupForm)))
+	mux.HandleFunc("POST /signup", handleSignupSubmit(authService))
+	mux.Handle("GET /login", redirectIfAuthenticated(http.HandlerFunc(handleLoginForm)))
+	mux.HandleFunc("POST /login", handleLoginSubmit(authService))
 	mux.HandleFunc("POST /logout", handleLogout(authService))
 
 	// Global: more than just auth routes will eventually want to know who's

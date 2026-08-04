@@ -7,7 +7,13 @@ import (
 	"github.com/matt-in-space/diplomacy/application/auth"
 )
 
-func handleSignup(authService *auth.Service) http.HandlerFunc {
+func handleSignupForm(w http.ResponseWriter, r *http.Request) {
+	if err := signupTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleSignupSubmit(authService *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
@@ -26,7 +32,13 @@ func handleSignup(authService *auth.Service) http.HandlerFunc {
 	}
 }
 
-func handleLogin(authService *auth.Service) http.HandlerFunc {
+func handleLoginForm(w http.ResponseWriter, r *http.Request) {
+	if err := loginTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleLoginSubmit(authService *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)

@@ -37,3 +37,19 @@ func currentPlayer(r *http.Request) (*auth.Player, bool) {
 	player, ok := r.Context().Value(currentPlayerKey).(*auth.Player)
 	return player, ok
 }
+
+// redirectIfAuthenticated sends an already-logged-in visitor to the home
+// page instead of showing a login/signup form. Relies on withCurrentPlayer
+// having already populated context (it wraps the whole mux), so it only
+// checks context, not the cookie directly. Applied to the GET (view the
+// form) routes only — not POST, which is only reachable by deliberately
+// crafting a request outside the UI, not a real risk worth guarding.
+func redirectIfAuthenticated(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := currentPlayer(r); ok {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

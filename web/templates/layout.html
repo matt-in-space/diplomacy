@@ -1,0 +1,29 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Diplomacy</title>
+	<link rel="stylesheet" href="/static/pico.min.css">
+</head>
+<body>
+	<nav class="container">
+		<ul><li><strong><a href="/">Diplomacy</a></strong></li></ul>
+		<ul>
+			{{if .CurrentPlayer}}
+				<li>{{.CurrentPlayer.DisplayName}}</li>
+				<li><form action="/logout" method="post"><button type="submit" class="secondary">Log out</button></form></li>
+			{{else}}
+				<li><a href="/login">Log in</a></li>
+				<li><a href="/signup">Sign up</a></li>
+			{{end}}
+		</ul>
+	</nav>
+	<main class="container">
+		{{with .Flash}}<article class="{{.Kind}}">{{.Message}}</article>{{end}}
+		{{template "content" .}}
+	</main>
+</body>
+</html>
+{{end}}

@@ -115,19 +115,123 @@ func TestLogoutClearsServerSideSession(t *testing.T) {
 	// though the client hasn't "seen" the clearing cookie yet in this test
 	// (each request here is constructed by hand) — proving the session was
 	// actually deleted server-side, not just that the client was told to
-	// forget it.
+	// forget it. Home now renders differently depending on login state, so
+	// this can assert the stronger thing directly: the display name is gone.
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	// Home renders for everyone regardless of login state (Part 2 adds the
-	// conditional content), so absence of a crash isn't proof; assert
-	// against the service directly isn't available here, so this test's
-	// real assertion already happened above (MaxAge < 0) plus the
-	// application-layer TestServiceLogoutRemovesSession, which does assert
-	// the repository state directly.
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if strings.Contains(rec.Body.String(), "Alice") {
+		t.Fatal("expected the display name to be gone from the page after logout")
+	}
+}
+
+func TestSignupFormRenders(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/signup", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/signup"`) {
+		t.Fatalf("body missing signup form action: %q", body)
+	}
+	if !strings.Contains(body, `name="display_name"`) {
+		t.Fatalf("body missing display_name field: %q", body)
+	}
+}
+
+func TestLoginFormRenders(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, `action="/login"`) {
+		t.Fatalf("body missing login form action: %q", body)
+	}
+}
+
+func TestSignupAndLoginFormsRedirectWhenAlreadyAuthenticated(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t))
+
+	signup(t, mux, "a@example.com", "Alice", "password123")
+	loginResp := login(t, mux, "a@example.com", "password123")
+	cookie := sessionCookie(loginResp)
+	if cookie == nil {
+		t.Fatal("expected a session cookie")
+	}
+
+	for _, path := range []string{"/signup", "/login"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusSeeOther)
+		}
+		if loc := rec.Header().Get("Location"); loc != "/" {
+			t.Fatalf("%s redirect Location = %q, want /", path, loc)
+		}
+	}
+}
+
+func TestFlashRendersThroughRealTemplateThenClears(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t))
+
+	// No account exists yet, so this fails with a flash set.
+	loginResp := login(t, mux, "missing@example.com", "password123")
+	flash := loginResp.Cookies()
+	var flashCookie *http.Cookie
+	for _, c := range flash {
+		if c.Name == "flash" {
+			flashCookie = c
+		}
+	}
+	if flashCookie == nil {
+		t.Fatal("expected a flash cookie after a failed login")
+	}
+
+	// Following the redirect, carrying the flash cookie, the way a browser
+	// would.
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(flashCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if !strings.Contains(rec.Body.String(), "Invalid email or password.") {
+		t.Fatalf("body missing flash message: %q", rec.Body.String())
+	}
+
+	var cleared *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "flash" {
+			cleared = c
+		}
+	}
+	if cleared == nil || cleared.MaxAge >= 0 {
+		t.Fatal("expected the flash cookie to be cleared after rendering")
+	}
+
+	// A second GET /login with no flash cookie (matching a browser that
+	// already consumed it) shows no message.
+	req2 := httptest.NewRequest(http.MethodGet, "/login", nil)
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+	if strings.Contains(rec2.Body.String(), "Invalid email or password.") {
+		t.Fatal("expected the flash message not to reappear without the flash cookie")
 	}
 }
 
