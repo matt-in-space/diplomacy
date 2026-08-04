@@ -142,11 +142,21 @@ to avoid throwaway work in the next one, not just picked for convenience:
      struct) was removed as dead code in the same pass — nothing in
      `core/game` ever used more than `PlayerID`. `GameplayService` no
      longer takes a `PlayerRepository` at all; it never actually used it.
-   - **Still to come:** a new `SessionRepository` (same in-memory pattern)
-     mapping an opaque cookie token to a `PlayerID`; the actual
-     signup/login/logout handlers and bcrypt hashing/verification logic;
-     wiring into the Go-rendered half of the two-flow split described in
-     `docs/user-experience.md`.
+     `auth.Session` (`Token`, `PlayerID`, `CreatedAt`, `ExpiresAt`) and
+     `auth.SessionRepository` also landed — chosen over a stateless signed
+     cookie specifically because a stateless design can't support real
+     revocation (logout, "log out everywhere," invalidating sessions on
+     password change all need server-side state regardless). `GetSession`
+     treats an expired token the same as an unknown one; `DeleteSession`
+     and `DeleteSessionsForPlayer` are idempotent — deleting an
+     already-gone session is a normal case, not a bug. Backed by
+     `infrastructure/memory.SessionRepository`; unlike `Player`, `Session`
+     has no reference-type fields, so no defensive cloning is needed at the
+     repository boundary. Token generation (`crypto/rand`, never anything
+     sequential) is the future login handler's job, not the repository's.
+   - **Still to come:** the actual signup/login/logout handlers and bcrypt
+     hashing/verification logic; wiring into the Go-rendered half of the
+     two-flow split described in `docs/user-experience.md`.
 2. **The game SPA**, still against in-memory repositories, built on top of
    a real session from step 1 rather than a stand-in identity — so nothing
    here needs revisiting once real auth exists, because it already will.
