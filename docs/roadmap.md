@@ -201,18 +201,28 @@ to avoid throwaway work in the next one, not just picked for convenience:
      success/error color distinction on flash messages yet (the
      `class="{{.Kind}}"` hook exists in the markup; the CSS doesn't) —
      both deliberate, matching "very simple looking."
-2. **The game SPA**, still against in-memory repositories, built on top of
+2. **Game setup** — list/create/invite/accept/start, still against
+   in-memory repositories, still Go-rendered (account/lobby territory per
+   the two-flow split, not the Svelte SPA). Design captured in full in
+   `docs/game-setup.md`; nothing implemented yet. A new `application/lobby`
+   package (`GameSetup`/`Invite`, their own repositories), plus
+   `application/gameplay`'s first-ever "create a game" use case
+   (`GameplayService.CreateGame`) and a new `GameRepository.ListGamesForPlayer`
+   method. This is the prerequisite for step 3 — there's no game to hand
+   off to the SPA until a setup can actually produce one.
+3. **The game SPA**, still against in-memory repositories, built on top of
    a real session from step 1 rather than a stand-in identity — so nothing
    here needs revisiting once real auth exists, because it already will.
    Svelte scoped to the in-game screen, SVG map rendering, REST plus the
    real-time channel — all per `docs/user-experience.md`.
-3. **Database and infrastructure** — Postgres via Podman, `pgx`/`pgxpool`,
+4. **Database and infrastructure** — Postgres via Podman, `pgx`/`pgxpool`,
    `sqlc`, migrations. Deliberately last: `GameRepository`,
-   `PlayerRepository`, `GameMapRepository`, and the new `SessionRepository`
-   are all interfaces specifically so this can be deferred until the shapes
-   of what's actually being persisted are proven out by steps 1-2, instead
-   of designing a schema speculatively. Swapping in a Postgres-backed
-   implementation touches only new files, not anything built in steps 1-2.
+   `PlayerRepository`, `GameMapRepository`, `SessionRepository`, and the new
+   `GameSetupRepository`/`InviteRepository` are all interfaces specifically
+   so this can be deferred until the shapes of what's actually being
+   persisted are proven out by steps 1-3, instead of designing a schema
+   speculatively. Swapping in a Postgres-backed implementation touches only
+   new files, not anything built in steps 1-3.
 
 ## Known issues
 
