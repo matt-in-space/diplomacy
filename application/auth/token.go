@@ -1,21 +1,15 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-
 	"github.com/matt-in-space/diplomacy/core/game"
+	"github.com/matt-in-space/diplomacy/internal/random"
 )
 
 // newToken returns a cryptographically random, hex-encoded string suitable
 // for a session token: 32 bytes (256 bits) of entropy, never anything
 // sequential or predictable.
 func newToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
+	return random.String()
 }
 
 // newPlayerID mints a new, random PlayerID. Players have no natural key to
