@@ -29,7 +29,9 @@ const (
 type GameSetup struct {
 	ID          game.GameID // becomes the real Game's ID once started — no remapping
 	MapID       gamemap.MapID
-	HostID      game.PlayerID
+	HostID      game.PlayerID   // admin authority only — start, cancel; membership is PlayerIDs
+	InviteCode  string          // the credential — one per setup, shared with everyone who gets the link
+	PlayerIDs   []game.PlayerID // everyone in the lobby; the host is seeded in at index 0
 	CreatedAt   time.Time
 	CancelledAt *time.Time // nil = not cancelled; the one fact that can't be derived
 }

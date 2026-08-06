@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/matt-in-space/diplomacy/application/gameplay"
@@ -15,30 +14,26 @@ import (
 )
 
 var (
-	ErrNotHost               = errors.New("not the host")
-	ErrGameSetupNotOpen      = errors.New("game setup is not open")
-	ErrInvitesPending        = errors.New("invites still pending")
-	ErrInviteAlreadyResolved = errors.New("invite already responded to")
+	ErrNotHost          = errors.New("not the host")
+	ErrGameSetupNotOpen = errors.New("game setup is not open")
 )
 
-// Service implements the game-setup lobby: creating a setup, inviting
-// players, accepting/declining, starting, and cancelling. It calls into
+// Service implements the game-setup lobby: creating a setup, joining it via
+// its shared invite code, starting, and cancelling. It calls into
 // gameplay.GameplayService for the one real use case it needs from that
 // package — actually creating the core/game.Game at kickoff — rather than
 // constructing games itself: lobby decides who/when, gameplay still owns
 // how a game actually gets created and persisted.
 type Service struct {
 	setups   GameSetupRepository
-	invites  InviteRepository
 	games    gameplay.GameRepository
 	maps     gameplay.GameMapRepository
 	gameplay *gameplay.GameplayService
 }
 
-func NewService(setups GameSetupRepository, invites InviteRepository, games gameplay.GameRepository, maps gameplay.GameMapRepository, gp *gameplay.GameplayService) *Service {
+func NewService(setups GameSetupRepository, games gameplay.GameRepository, maps gameplay.GameMapRepository, gp *gameplay.GameplayService) *Service {
 	return &Service{
 		setups:   setups,
-		invites:  invites,
 		games:    games,
 		maps:     maps,
 		gameplay: gp,
@@ -64,8 +59,9 @@ func (s *Service) StatusFor(ctx context.Context, setup *GameSetup) (Status, erro
 }
 
 // CreateGameSetup starts a new lobby for the given map, hosted by hostID.
-// The host is a participant by construction — they don't invite
-// themselves, and count as accepted for start-readiness.
+// The host is seeded into PlayerIDs immediately — they don't join via their
+// own invite link, and count toward capacity and start-readiness like
+// anyone else who joins.
 func (s *Service) CreateGameSetup(ctx context.Context, hostID game.PlayerID, mapID gamemap.MapID) (*GameSetup, error) {
 	if _, err := s.maps.GetMap(mapID); err != nil {
 		return nil, fmt.Errorf("failed to get game map %q: %w", mapID, err)
@@ -75,12 +71,18 @@ func (s *Service) CreateGameSetup(ctx context.Context, hostID game.PlayerID, map
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate game setup ID: %w", err)
 	}
+	code, err := newInviteCode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate invite code: %w", err)
+	}
 
 	setup := &GameSetup{
-		ID:        id,
-		MapID:     mapID,
-		HostID:    hostID,
-		CreatedAt: time.Now(),
+		ID:         id,
+		MapID:      mapID,
+		HostID:     hostID,
+		InviteCode: code,
+		PlayerIDs:  []game.PlayerID{hostID},
+		CreatedAt:  time.Now(),
 	}
 	if err := s.setups.CreateGameSetup(ctx, setup); err != nil {
 		return nil, err
@@ -88,13 +90,18 @@ func (s *Service) CreateGameSetup(ctx context.Context, hostID game.PlayerID, map
 	return setup, nil
 }
 
-// InvitePlayer adds an invite for email to gameID's lobby. Only the host
-// may invite. It's idempotent: a Pending or Accepted invite already on file
-// for that email is returned as-is rather than duplicated. A previously
-// Declined invite for the same email gets a fresh one — the host
-// re-inviting someone who said no is a reasonable action, not an error.
-func (s *Service) InvitePlayer(ctx context.Context, gameID game.GameID, requesterID game.PlayerID, email string) (*Invite, error) {
-	setup, status, err := s.loadHostedSetup(ctx, gameID, requesterID)
+// JoinGameSetup adds playerID to the lobby behind code. It's idempotent —
+// joining twice, or the host using their own link, succeeds and changes
+// nothing — and capacity-checked against the map's nation count, so a
+// forwarded link can't overfill a lobby past what StartGame could ever
+// assign.
+func (s *Service) JoinGameSetup(ctx context.Context, code string, playerID game.PlayerID) (*GameSetup, error) {
+	setup, err := s.setups.GetGameSetupByInviteCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := s.StatusFor(ctx, setup)
 	if err != nil {
 		return nil, err
 	}
@@ -102,73 +109,22 @@ func (s *Service) InvitePlayer(ctx context.Context, gameID game.GameID, requeste
 		return nil, fmt.Errorf("%w: %s", ErrGameSetupNotOpen, status)
 	}
 
-	email = strings.TrimSpace(email)
-	if email == "" || !strings.Contains(email, "@") {
-		return nil, errors.New("a valid email is required")
+	gm, err := s.maps.GetMap(setup.MapID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game map %q: %w", setup.MapID, err)
 	}
 
-	existing, err := s.invites.ListInvitesForGame(ctx, setup.ID)
-	if err != nil {
+	if err := s.setups.AddPlayerToGameSetup(ctx, setup.ID, playerID, len(gm.Nations)); err != nil {
 		return nil, err
 	}
-	for _, invite := range existing {
-		if invite.Email == email && invite.Status != InviteDeclined {
-			return invite, nil
-		}
-	}
-
-	code, err := newInviteCode()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate invite code: %w", err)
-	}
-
-	invite := &Invite{
-		Code:      code,
-		GameID:    setup.ID,
-		Email:     email,
-		Status:    InvitePending,
-		CreatedAt: time.Now(),
-	}
-	if err := s.invites.CreateInvite(ctx, invite); err != nil {
-		return nil, err
-	}
-	return invite, nil
+	return s.setups.GetGameSetup(ctx, setup.ID)
 }
 
-// AcceptInvite records playerID as accepting the invite behind code.
-func (s *Service) AcceptInvite(ctx context.Context, code string, playerID game.PlayerID) error {
-	return s.respondToInvite(ctx, code, playerID, InviteAccepted)
-}
-
-// DeclineInvite records playerID as declining the invite behind code. The
-// host can always send a fresh invite to the same email afterward — see
-// InvitePlayer.
-func (s *Service) DeclineInvite(ctx context.Context, code string, playerID game.PlayerID) error {
-	return s.respondToInvite(ctx, code, playerID, InviteDeclined)
-}
-
-func (s *Service) respondToInvite(ctx context.Context, code string, playerID game.PlayerID, status InviteStatus) error {
-	invite, err := s.invites.GetInviteByCode(ctx, code)
-	if err != nil {
-		return err
-	}
-	if invite.Status != InvitePending {
-		return fmt.Errorf("%w: %s", ErrInviteAlreadyResolved, invite.Status)
-	}
-
-	invite.Status = status
-	invite.PlayerID = playerID
-	invite.RespondedAt = time.Now()
-	return s.invites.SaveInvite(ctx, invite)
-}
-
-// StartGame kicks a setup off: only the host may start, and only once zero
-// invites remain Pending (a decline just sits there — the host is expected
-// to send a replacement invite rather than the system tracking a minimum
-// headcount). Accepted players plus the host are randomly shuffled onto the
-// map's nations; more accepted players than nations simply leaves the
-// extras unassigned rather than erroring — the host over-invited, that's
-// their call to make. The real core/game.Game is created by delegating to
+// StartGame kicks a setup off: only the host may start. Everyone currently
+// in PlayerIDs (the host included, seeded at creation) is randomly shuffled
+// onto the map's nations — capacity is already enforced at join time, so
+// there are never more players than nations to assign. The real
+// core/game.Game is created by delegating to
 // gameplay.GameplayService.CreateGame.
 func (s *Service) StartGame(ctx context.Context, gameID game.GameID, requesterID game.PlayerID) error {
 	setup, status, err := s.loadHostedSetup(ctx, gameID, requesterID)
@@ -179,34 +135,20 @@ func (s *Service) StartGame(ctx context.Context, gameID game.GameID, requesterID
 		return fmt.Errorf("%w: %s", ErrGameSetupNotOpen, status)
 	}
 
-	invites, err := s.invites.ListInvitesForGame(ctx, setup.ID)
-	if err != nil {
-		return err
-	}
-
-	players := []game.PlayerID{setup.HostID}
-	for _, invite := range invites {
-		switch invite.Status {
-		case InvitePending:
-			return fmt.Errorf("%w: %s", ErrInvitesPending, invite.Email)
-		case InviteAccepted:
-			players = append(players, invite.PlayerID)
-		}
-	}
-
 	gm, err := s.maps.GetMap(setup.MapID)
 	if err != nil {
 		return fmt.Errorf("failed to get game map %q: %w", setup.MapID, err)
 	}
 
 	nations := slices.Clone(gm.Nations)
+	players := slices.Clone(setup.PlayerIDs)
 	rand.Shuffle(len(nations), func(i, j int) { nations[i], nations[j] = nations[j], nations[i] })
 	rand.Shuffle(len(players), func(i, j int) { players[i], players[j] = players[j], players[i] })
 
 	assignments := make(map[gamemap.NationID]game.PlayerID, min(len(nations), len(players)))
 	for i, playerID := range players {
 		if i >= len(nations) {
-			break // more accepted players than nations — host over-invited, extras go unassigned
+			break // unreachable in practice — capacity is enforced at join time
 		}
 		assignments[nations[i]] = playerID
 	}
@@ -216,7 +158,7 @@ func (s *Service) StartGame(ctx context.Context, gameID game.GameID, requesterID
 }
 
 // CancelGameSetup ends a lobby before it starts, so a stalled setup with
-// unresponsive invitees isn't permanently stuck. Only the host may cancel.
+// too few joiners isn't permanently stuck. Only the host may cancel.
 // Cancelling an already-cancelled setup is a no-op, not an error; an
 // already-active setup can't be cancelled this way (that's the separate,
 // not-yet-built EndGame administrative action for a running game).

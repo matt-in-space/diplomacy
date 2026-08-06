@@ -191,8 +191,9 @@ are genuinely different:
   - Real relational tables for anything that needs to be queried or joined:
     `players` (credentials), `sessions`, `games` (id, map_id, status,
     created_at — enough metadata to list/filter without touching the
-    blob), and `invites`/`assignments` (player↔game↔nation,
-    pending/accepted/declined).
+    blob), and `game_setups` (id, map_id, host_id, invite_code,
+    cancelled_at, a JSONB `player_ids` array with a GIN index for "which
+    setups is this player in" — see `docs/game-setup.md`).
   - One JSONB column holding the serialized `*game.Game` aggregate for the
     actual turn-by-turn engine state. Nothing needs to SQL-query into
     individual units or orders — the aggregate always loads and saves

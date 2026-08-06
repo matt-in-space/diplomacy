@@ -21,7 +21,7 @@ func serviceTestMap() *gamemap.GameMap {
 
 // newTestService wires a lobby.Service against real infrastructure/memory
 // repositories, not fakes — this is exactly the kind of multi-step,
-// stateful round-tripping (invite, accept, start, and check the resulting
+// stateful round-tripping (create, join, start, and check the resulting
 // Game) a call-counting fake can't usefully stand in for. It also returns
 // the underlying games and setups repositories directly, since Service has
 // no read-only passthrough for either — tests that need to observe stored
@@ -31,11 +31,10 @@ func serviceTestMap() *gamemap.GameMap {
 func newTestService(t *testing.T) (*lobby.Service, gameplay.GameRepository, lobby.GameSetupRepository) {
 	t.Helper()
 	setups := memory.NewGameSetupRepository()
-	invites := memory.NewInviteRepository()
 	games := memory.NewGameRepository()
 	maps := memory.NewGameMapRepository(serviceTestMap())
 	gp := gameplay.NewGameplayService(games, maps)
-	return lobby.NewService(setups, invites, games, maps, gp), games, setups
+	return lobby.NewService(setups, games, maps, gp), games, setups
 }
 
 func TestCreateGameSetup(t *testing.T) {
@@ -48,6 +47,12 @@ func TestCreateGameSetup(t *testing.T) {
 	}
 	if setup.HostID != "host-a" {
 		t.Fatalf("HostID = %q, want %q", setup.HostID, "host-a")
+	}
+	if setup.InviteCode == "" {
+		t.Fatal("expected a non-empty InviteCode")
+	}
+	if len(setup.PlayerIDs) != 1 || setup.PlayerIDs[0] != "host-a" {
+		t.Fatalf("PlayerIDs = %v, want [host-a]", setup.PlayerIDs)
 	}
 
 	status, err := service.StatusFor(ctx, setup)
@@ -68,7 +73,7 @@ func TestCreateGameSetupRejectsUnknownMap(t *testing.T) {
 	}
 }
 
-func TestInvitePlayerDedupesRepeatInvite(t *testing.T) {
+func TestJoinGameSetupAddsPlayer(t *testing.T) {
 	service, _, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
@@ -76,20 +81,16 @@ func TestInvitePlayerDedupesRepeatInvite(t *testing.T) {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
 
-	first, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
+	updated, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a")
 	if err != nil {
-		t.Fatalf("first InvitePlayer failed: %v", err)
+		t.Fatalf("JoinGameSetup failed: %v", err)
 	}
-	second, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
-	if err != nil {
-		t.Fatalf("second InvitePlayer failed: %v", err)
-	}
-	if first.Code != second.Code {
-		t.Fatalf("expected the same invite to be returned, got codes %q and %q", first.Code, second.Code)
+	if len(updated.PlayerIDs) != 2 {
+		t.Fatalf("PlayerIDs = %v, want 2 entries", updated.PlayerIDs)
 	}
 }
 
-func TestInvitePlayerIssuesFreshInviteAfterDecline(t *testing.T) {
+func TestJoinGameSetupIsIdempotent(t *testing.T) {
 	service, _, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
@@ -97,27 +98,19 @@ func TestInvitePlayerIssuesFreshInviteAfterDecline(t *testing.T) {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
 
-	first, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("first JoinGameSetup failed: %v", err)
+	}
+	updated, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a")
 	if err != nil {
-		t.Fatalf("first InvitePlayer failed: %v", err)
+		t.Fatalf("second JoinGameSetup failed: %v", err)
 	}
-	if err := service.DeclineInvite(ctx, first.Code, "player-a"); err != nil {
-		t.Fatalf("DeclineInvite failed: %v", err)
-	}
-
-	second, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
-	if err != nil {
-		t.Fatalf("second InvitePlayer failed: %v", err)
-	}
-	if second.Code == first.Code {
-		t.Fatal("expected a fresh invite code after a decline")
-	}
-	if second.Status != lobby.InvitePending {
-		t.Fatalf("second invite status = %q, want %q", second.Status, lobby.InvitePending)
+	if len(updated.PlayerIDs) != 2 {
+		t.Fatalf("PlayerIDs = %v, want 2 entries after rejoining", updated.PlayerIDs)
 	}
 }
 
-func TestInvitePlayerRejectsNonHost(t *testing.T) {
+func TestJoinGameSetupHostUsingOwnCodeIsNoOp(t *testing.T) {
 	service, _, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
@@ -125,64 +118,88 @@ func TestInvitePlayerRejectsNonHost(t *testing.T) {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
 
-	_, err = service.InvitePlayer(ctx, setup.ID, "not-the-host", "a@example.com")
-	if !errors.Is(err, lobby.ErrNotHost) {
-		t.Fatalf("InvitePlayer error = %v, want ErrNotHost", err)
+	updated, err := service.JoinGameSetup(ctx, setup.InviteCode, "host-a")
+	if err != nil {
+		t.Fatalf("JoinGameSetup(host) failed: %v", err)
+	}
+	if len(updated.PlayerIDs) != 1 {
+		t.Fatalf("PlayerIDs = %v, want [host-a] unchanged", updated.PlayerIDs)
 	}
 }
 
-func TestInvitePlayerRejectsInvalidEmail(t *testing.T) {
+func TestJoinGameSetupRejectsUnknownCode(t *testing.T) {
+	service, _, _ := newTestService(t)
+
+	_, err := service.JoinGameSetup(context.Background(), "missing-code", "player-a")
+	if !errors.Is(err, lobby.ErrGameSetupNotFound) {
+		t.Fatalf("JoinGameSetup error = %v, want ErrGameSetupNotFound", err)
+	}
+}
+
+func TestJoinGameSetupRejectsCancelledSetup(t *testing.T) {
 	service, _, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
+	if err := service.CancelGameSetup(ctx, setup.ID, "host-a"); err != nil {
+		t.Fatalf("CancelGameSetup failed: %v", err)
+	}
 
-	if _, err := service.InvitePlayer(ctx, setup.ID, "host-a", "not-an-email"); err == nil {
-		t.Fatal("expected InvitePlayer to reject an invalid email")
+	_, err = service.JoinGameSetup(ctx, setup.InviteCode, "player-a")
+	if !errors.Is(err, lobby.ErrGameSetupNotOpen) {
+		t.Fatalf("JoinGameSetup error = %v, want ErrGameSetupNotOpen", err)
 	}
 }
 
-func TestAcceptInviteRejectsSecondResponse(t *testing.T) {
+func TestJoinGameSetupRejectsStartedSetup(t *testing.T) {
 	service, _, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
-	invite, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
-	if err != nil {
-		t.Fatalf("InvitePlayer failed: %v", err)
+	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
+		t.Fatalf("StartGame failed: %v", err)
 	}
 
-	if err := service.AcceptInvite(ctx, invite.Code, "player-a"); err != nil {
-		t.Fatalf("AcceptInvite failed: %v", err)
-	}
-	err = service.AcceptInvite(ctx, invite.Code, "player-a")
-	if !errors.Is(err, lobby.ErrInviteAlreadyResolved) {
-		t.Fatalf("second AcceptInvite error = %v, want ErrInviteAlreadyResolved", err)
-	}
-	err = service.DeclineInvite(ctx, invite.Code, "player-a")
-	if !errors.Is(err, lobby.ErrInviteAlreadyResolved) {
-		t.Fatalf("DeclineInvite after accept error = %v, want ErrInviteAlreadyResolved", err)
+	_, err = service.JoinGameSetup(ctx, setup.InviteCode, "player-a")
+	if !errors.Is(err, lobby.ErrGameSetupNotOpen) {
+		t.Fatalf("JoinGameSetup error = %v, want ErrGameSetupNotOpen", err)
 	}
 }
 
-func TestStartGameSucceedsAndAssignsEveryAcceptedPlayer(t *testing.T) {
+func TestJoinGameSetupRejectsPastCapacity(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+	// serviceTestMap has 3 nations: host-a + 2 joiners fills it exactly.
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
+	}
+
+	_, err = service.JoinGameSetup(ctx, setup.InviteCode, "player-c")
+	if !errors.Is(err, lobby.ErrGameSetupFull) {
+		t.Fatalf("JoinGameSetup(player-c) error = %v, want ErrGameSetupFull", err)
+	}
+}
+
+func TestStartGameSucceedsAndAssignsEveryPlayer(t *testing.T) {
 	service, games, _ := newTestService(t)
 	ctx := context.Background()
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
-
-	invite, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com")
-	if err != nil {
-		t.Fatalf("InvitePlayer failed: %v", err)
-	}
-	if err := service.AcceptInvite(ctx, invite.Code, "player-a"); err != nil {
-		t.Fatalf("AcceptInvite failed: %v", err)
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup failed: %v", err)
 	}
 
 	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
@@ -214,23 +231,6 @@ func TestStartGameSucceedsAndAssignsEveryAcceptedPlayer(t *testing.T) {
 	}
 	if len(stored.Game.Assignments) != 2 {
 		t.Fatalf("len(Assignments) = %d, want 2", len(stored.Game.Assignments))
-	}
-}
-
-func TestStartGameRejectsRemainingPendingInvite(t *testing.T) {
-	service, _, _ := newTestService(t)
-	ctx := context.Background()
-	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
-	if err != nil {
-		t.Fatalf("CreateGameSetup failed: %v", err)
-	}
-	if _, err := service.InvitePlayer(ctx, setup.ID, "host-a", "a@example.com"); err != nil {
-		t.Fatalf("InvitePlayer failed: %v", err)
-	}
-
-	err = service.StartGame(ctx, setup.ID, "host-a")
-	if !errors.Is(err, lobby.ErrInvitesPending) {
-		t.Fatalf("StartGame error = %v, want ErrInvitesPending", err)
 	}
 }
 
