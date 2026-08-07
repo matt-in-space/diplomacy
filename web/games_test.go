@@ -390,3 +390,243 @@ func TestGamesJoinRequiresLogin(t *testing.T) {
 		t.Fatalf("Location = %q, want /login?next=%%2Fgames%%2Fjoin", loc)
 	}
 }
+
+func TestLobbyStartButtonDisabledUntilFullThenEnabled(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+
+	fetchLobby := func() string {
+		req := httptest.NewRequest(http.MethodGet, loc, nil)
+		req.AddCookie(hostCookie)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec.Body.String()
+	}
+
+	// western-europe-subset has 2 nations — host alone is 1/2, not full yet.
+	before := fetchLobby()
+	if !strings.Contains(before, "Start Game (1/2)") {
+		t.Fatalf("body missing 1/2 progress: %q", before)
+	}
+	if !strings.Contains(before, "disabled") {
+		t.Fatalf("body should have a disabled Start button before the lobby is full: %q", before)
+	}
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	after := fetchLobby()
+	if !strings.Contains(after, "Start Game (2/2)") {
+		t.Fatalf("body missing 2/2 progress: %q", after)
+	}
+	if strings.Contains(after, "disabled") {
+		t.Fatalf("Start button should no longer be disabled once full: %q", after)
+	}
+}
+
+func TestStartGameSucceedsWhenFullAndRedirectsToGame(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+	if got := resp.Header.Get("Location"); got != "/games/"+gameID {
+		t.Fatalf("Location = %q, want /games/%s", got, gameID)
+	}
+}
+
+func TestStartGameRejectsWhenNotFull(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, _ := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	req := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+	if got := resp.Header.Get("Location"); got != loc {
+		t.Fatalf("Location = %q, want %q (back to the lobby)", got, loc)
+	}
+
+	var flash *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "flash" {
+			flash = c
+		}
+	}
+	if flash == nil {
+		t.Fatal("expected a flash cookie when starting an unfull lobby")
+	}
+
+	followReq := httptest.NewRequest(http.MethodGet, loc, nil)
+	followReq.AddCookie(hostCookie)
+	followReq.AddCookie(flash)
+	followRec := httptest.NewRecorder()
+	mux.ServeHTTP(followRec, followReq)
+	if !strings.Contains(followRec.Body.String(), "Waiting for all players") {
+		t.Fatalf("body missing not-full message: %q", followRec.Body.String())
+	}
+}
+
+func TestStartGameRejectsNonHost(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	req.AddCookie(joinerCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	var flash *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "flash" {
+			flash = c
+		}
+	}
+	if flash == nil {
+		t.Fatal("expected a flash cookie for a non-host start attempt")
+	}
+
+	followReq := httptest.NewRequest(http.MethodGet, loc, nil)
+	followReq.AddCookie(joinerCookie)
+	followReq.AddCookie(flash)
+	followRec := httptest.NewRecorder()
+	mux.ServeHTTP(followRec, followReq)
+	if !strings.Contains(followRec.Body.String(), "Only the host") {
+		t.Fatalf("body missing non-host message: %q", followRec.Body.String())
+	}
+}
+
+func TestGameRedirectsToLobbyWhilePending(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, _ := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	req := httptest.NewRequest(http.MethodGet, "/games/"+gameID, nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+	if got := resp.Header.Get("Location"); got != loc {
+		t.Fatalf("Location = %q, want %q", got, loc)
+	}
+}
+
+func TestGameRendersBlankPlaceholderWhenActive(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	startReq := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	startReq.AddCookie(hostCookie)
+	startRec := httptest.NewRecorder()
+	mux.ServeHTTP(startRec, startReq)
+	if startRec.Result().StatusCode != http.StatusSeeOther {
+		t.Fatalf("start status = %d, want %d", startRec.Result().StatusCode, http.StatusSeeOther)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/games/"+gameID, nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "The game has started") {
+		t.Fatalf("body missing placeholder text: %q", rec.Body.String())
+	}
+
+	// The lobby page should now report Active status too.
+	lobbyReq := httptest.NewRequest(http.MethodGet, loc, nil)
+	lobbyReq.AddCookie(hostCookie)
+	lobbyRec := httptest.NewRecorder()
+	mux.ServeHTTP(lobbyRec, lobbyReq)
+	if !strings.Contains(lobbyRec.Body.String(), "active") {
+		t.Fatalf("lobby body missing active status: %q", lobbyRec.Body.String())
+	}
+}
+
+func TestGameRequiresLogin(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/games/some-id", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/login?next=%2Fgames%2Fsome-id" {
+		t.Fatalf("Location = %q, want /login?next=%%2Fgames%%2Fsome-id", loc)
+	}
+}

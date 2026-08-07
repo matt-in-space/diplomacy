@@ -1,7 +1,16 @@
 {{define "content"}}
 <h1>Game lobby</h1>
 <p>Status: <strong>{{.Status}}</strong></p>
-{{if eq .Setup.HostID .CurrentPlayer.ID}}<p>You are the host.</p>{{end}}
+{{if eq .Setup.HostID .CurrentPlayer.ID}}
+<p>You are the host.</p>
+{{if eq .Status "pending"}}
+<form method="post" action="/games/{{.Setup.ID}}/start">
+	<button type="submit" {{if not .ReadyToStart}}disabled{{end}}>
+		Start Game ({{len .Players}}/{{.Capacity}})
+	</button>
+</form>
+{{end}}
+{{end}}
 
 {{if eq .Status "pending"}}
 <article>

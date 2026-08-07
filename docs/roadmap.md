@@ -208,11 +208,13 @@ to avoid throwaway work in the next one, not just picked for convenience:
    a new `application/lobby` package (`GameSetup` and its repository) and
    `application/gameplay`'s first-ever "create a game" use case
    (`GameplayService.CreateGame`), both against `infrastructure/memory` and
-   now wired into `cmd/server/main.go`. Both create and join are live in
-   `web`: home page → `/games/new` or `/games/join` → `/games/{id}/lobby`,
-   gated by `requireAuthentication`. Still needed: the `/games` list (and a
-   new `GameRepository.ListGamesForPlayer` method) and Start/Cancel actions
-   on the lobby page. This is the prerequisite for
+   now wired into `cmd/server/main.go`. Create, join, and start are all
+   live in `web`: home page → `/games/new` or `/games/join` →
+   `/games/{id}/lobby` → (once every nation has a joined player) `POST
+   /games/{id}/start` → `/games/{id}`, a blank placeholder for now, gated
+   by `requireAuthentication`. Still needed: the `/games` list (and a new
+   `GameRepository.ListGamesForPlayer` method) and Cancel on the lobby
+   page. This is the prerequisite for
    step 3 — there's no game to hand off to the SPA until a setup can
    actually produce one.
 3. **The game SPA**, still against in-memory repositories, built on top of

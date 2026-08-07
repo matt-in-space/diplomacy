@@ -54,10 +54,16 @@ produces one once it's ready.
   chat can bring more clicks than there are nations. Rejecting the joiner
   past capacity is better than letting them into the lobby and having them
   silently get no nation at kickoff.
-- **Starting: the host alone decides when.** There is no minimum
-  player-count gate — a host judgment call, not a validated rule, for v1.
-  Capacity is already enforced at join time, so `StartGame` can never
-  receive more players than nations to assign.
+- **Starting requires the lobby to be full.** Superseding the earlier "host
+  judgment call, no minimum" decision: `StartGame` now rejects
+  (`ErrGameSetupNotFull`) unless every nation on the map has a joined
+  player. The web layer reflects this before the host even tries — the
+  Start button is `disabled` and shows live progress ("Start Game (1/2)")
+  until the lobby fills — but the enforcement lives in the service, not
+  just the UI, since a disabled HTML attribute is trivially bypassable by
+  posting to the route directly. Capacity is already enforced at join time,
+  so `StartGame` can never receive more players than nations to assign —
+  this new check only ever needs `>=`, not exact-match, math.
 - **Nation assignment: random shuffle at kickoff.** Everyone in `PlayerIDs`
   (the host included) is randomly assigned to the map's nations; fewer
   joiners than nations just leaves the remainder vacant (already
@@ -199,21 +205,28 @@ GET  /games/join                require login — paste-a-code form (implemented
 POST /games/join                joins via lobby.Service.JoinGameSetup, redirects to
                                  /games/{id}/lobby on success, or back to /games/join with
                                  a specific flash message on failure (implemented)
-GET  /games/{id}/lobby          require login — read-only status: pending/active/cancelled, host,
-                                 player count, players table (implemented)
+GET  /games/{id}/lobby          require login — status, host, player count/table, and (while
+                                 pending) a Start button disabled until the lobby is full
+                                 (implemented)
+POST /games/{id}/start          host-only, rejects unless full (ErrGameSetupNotFull) or the
+                                 setup isn't open (ErrGameSetupNotOpen); redirects to
+                                 /games/{id} on success, back to /games/{id}/lobby with a
+                                 flash on failure (implemented)
+GET  /games/{id}                require login — Active: a blank placeholder page (the real
+                                 game screen is future work); Pending/Cancelled: redirects
+                                 to /games/{id}/lobby, so this is a stable "go to this game"
+                                 link regardless of state (implemented)
 GET  /games                     not yet built — needs GameplayService.ListGamesForPlayer
-POST /games/{id}/start          not yet built — a deliberate follow-up once Active-state
-POST /games/{id}/cancel         not yet built — rendering (below) is worth deciding
+POST /games/{id}/cancel         not yet built
 GET  /join/{code}               deliberately deferred — the code is surfaced today as plain
                                  text in the lobby's "Share this code" callout, not a link,
                                  so a clickable /join/{code} URL has no real caller yet
 ```
 
-`/games/{id}` itself (as a status-based redirector to `/lobby` vs. wherever
-an active game eventually renders) was considered and deliberately not
-built yet — `/games/{id}/lobby` is reached directly from the create flow,
-and nothing yet needs the redirector's smarts since Start doesn't exist to
-flip a setup to Active.
+`/games/{id}` is viewable by any logged-in user who knows the ID — same
+permissiveness `/games/{id}/lobby` already had, no check that the viewer is
+actually a participant. Noted as a known, pre-existing gap rather than
+silently ignored; tightening it is separate work if/when it matters.
 
 `requireAuthentication` (`web/session_middleware.go`) is built — the
 blocking counterpart to `withCurrentPlayer`'s non-blocking style, redirects
@@ -228,8 +241,8 @@ used to flag ("doesn't currently carry `next` through at all").
 
 Templates, through the existing `parsePage("templates/<name>.html")` +
 shared-layout pattern: `games_new.html`, `games_join.html`,
-`game_setup_lobby.html`. A `games` list page is not yet built, per the
-routes above.
+`game_setup_lobby.html`, `game.html` (the blank active-game placeholder). A
+`games` list page is not yet built, per the routes above.
 
 `lobby.Service.JoinGameSetup` normalizes the submitted code (trim,
 uppercase) before looking it up — the code alphabet
@@ -237,34 +250,38 @@ uppercase) before looking it up — the code alphabet
 a human actually types, unlike every other ID in the system. `POST
 /games/join` maps `JoinGameSetup`'s sentinel errors
 (`ErrGameSetupNotFound`/`ErrGameSetupFull`/`ErrGameSetupNotOpen`) to
-specific flash copy rather than echoing the raw wrapped error back.
+specific flash copy rather than echoing the raw wrapped error back. `POST
+/games/{id}/start` does the same for `StartGame`'s errors
+(`ErrNotHost`/`ErrGameSetupNotFull`/`ErrGameSetupNotOpen`).
 
 ## Out of scope
 
-- The actual game screen once a setup goes active (future Svelte SPA work).
+- The actual game screen once a setup goes active (future Svelte SPA work)
+  — `/games/{id}` is a blank placeholder until then.
 - Real email delivery — the invite code is shared as a link, out of band,
   by whoever's hosting.
 - Invite code rotation.
 - Host-controlled or player-chosen nation assignment (random only) — a
   reasonable later feature, not a redesign to add.
-- Minimum player count validation beyond "the host is always in."
 - The active-game `EndGame` owner action (force-completing a stuck game) —
   administering a running game, not game setup.
+- Per-game participant access control on `/games/{id}`/`/games/{id}/lobby`.
 
 ## Status
 
 Backend plumbing implemented: `application/lobby` (types, repository
-interface, service, including a `GetGameSetup` read-only passthrough for
-the web layer) and its `infrastructure/memory` implementation, plus
-`application/gameplay.CreateGame`. `cmd/server/main.go` wires it all up —
-`lobby.Service` is no longer discarded.
+interface, service, including `GetGameSetup` and `ReadyToStart` read-only
+passthroughs for the web layer) and its `infrastructure/memory`
+implementation, plus `application/gameplay.CreateGame`.
+`cmd/server/main.go` wires it all up — `lobby.Service` is no longer
+discarded.
 
-Web: the create-game flow (home page link → `/games/new` → `POST /games` →
-`/games/{id}/lobby`) and the join-by-code flow (home page link →
-`/games/join` → `POST /games/join` → `/games/{id}/lobby`) are both
-implemented end to end, gated by `requireAuthentication` with a working
-`next` round-trip through both login and signup. The lobby page resolves
-display names for every player via a new `auth.Service.GetPlayer`
-passthrough, rather than showing raw `PlayerID`s. Still open: the `/games`
-list, Start/Cancel actions on the lobby page, and `/join/{code}` as a
+Web: create (home → `/games/new` → `POST /games` → `/games/{id}/lobby`),
+join (home → `/games/join` → `POST /games/join` → `/games/{id}/lobby`),
+and start (lobby's Start button, disabled until full → `POST
+/games/{id}/start` → `/games/{id}`) are all implemented end to end, gated
+by `requireAuthentication` with a working `next` round-trip through both
+login and signup. The lobby page resolves display names for every player
+via `auth.Service.GetPlayer`, rather than showing raw `PlayerID`s. Still
+open: the `/games` list, Cancel on the lobby page, and `/join/{code}` as a
 clickable link.

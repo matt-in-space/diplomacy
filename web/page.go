@@ -55,6 +55,11 @@ type gameSetupLobbyPageData struct {
 	Setup   *lobby.GameSetup
 	Status  lobby.Status
 	Players []lobbyPlayerRow
+	// ReadyToStart and Capacity are only populated while Status is
+	// StatusPending — the Start button only exists in that state, so
+	// there's nothing to compute them for otherwise.
+	ReadyToStart bool
+	Capacity     int
 }
 
 type lobbyPlayerRow struct {

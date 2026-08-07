@@ -181,6 +181,14 @@ func TestJoinGameSetupRejectsStartedSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
+	// serviceTestMap has 3 nations; host-a plus two joiners fills it, which
+	// StartGame now requires.
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
+	}
 	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
 		t.Fatalf("StartGame failed: %v", err)
 	}
@@ -219,8 +227,12 @@ func TestStartGameSucceedsAndAssignsEveryPlayer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
 	}
+	// serviceTestMap has 3 nations; host-a plus two joiners fills it.
 	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
-		t.Fatalf("JoinGameSetup failed: %v", err)
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
 	}
 
 	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
@@ -250,8 +262,71 @@ func TestStartGameSucceedsAndAssignsEveryPlayer(t *testing.T) {
 	if !assignedPlayers["player-a"] {
 		t.Fatal("expected player-a to be assigned a nation")
 	}
-	if len(stored.Game.Assignments) != 2 {
-		t.Fatalf("len(Assignments) = %d, want 2", len(stored.Game.Assignments))
+	if !assignedPlayers["player-b"] {
+		t.Fatal("expected player-b to be assigned a nation")
+	}
+	if len(stored.Game.Assignments) != 3 {
+		t.Fatalf("len(Assignments) = %d, want 3", len(stored.Game.Assignments))
+	}
+}
+
+func TestStartGameRejectsWhenNotFull(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	// serviceTestMap has 3 nations; only host-a has joined so far.
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+
+	err = service.StartGame(ctx, setup.ID, "host-a")
+	if !errors.Is(err, lobby.ErrGameSetupNotFull) {
+		t.Fatalf("StartGame error = %v, want ErrGameSetupNotFull", err)
+	}
+}
+
+func TestReadyToStartReflectsCapacity(t *testing.T) {
+	service, _, setups := newTestService(t)
+	ctx := context.Background()
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+
+	ready, capacity, err := service.ReadyToStart(ctx, setup)
+	if err != nil {
+		t.Fatalf("ReadyToStart failed: %v", err)
+	}
+	if capacity != 3 {
+		t.Fatalf("capacity = %d, want 3", capacity)
+	}
+	if ready {
+		t.Fatal("expected ready = false with only the host joined")
+	}
+
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
+	}
+
+	setup, err = setups.GetGameSetup(ctx, setup.ID)
+	if err != nil {
+		t.Fatalf("GetGameSetup failed: %v", err)
+	}
+	ready, capacity, err = service.ReadyToStart(ctx, setup)
+	if err != nil {
+		t.Fatalf("ReadyToStart failed: %v", err)
+	}
+	if capacity != 3 {
+		t.Fatalf("capacity = %d, want 3", capacity)
+	}
+	if !ready {
+		t.Fatal("expected ready = true once every nation has a player")
 	}
 }
 
@@ -275,6 +350,12 @@ func TestStartGameRejectsDoubleStart(t *testing.T) {
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
 	}
 	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
 		t.Fatalf("first StartGame failed: %v", err)
@@ -338,6 +419,12 @@ func TestCancelGameSetupRejectsAlreadyStarted(t *testing.T) {
 	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
 	if err != nil {
 		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
 	}
 	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
 		t.Fatalf("StartGame failed: %v", err)

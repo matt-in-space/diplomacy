@@ -17,6 +17,10 @@ import (
 var (
 	ErrNotHost          = errors.New("not the host")
 	ErrGameSetupNotOpen = errors.New("game setup is not open")
+	// ErrGameSetupNotFull is the opposite condition of ErrGameSetupFull:
+	// that one means "can't join, already at capacity"; this one means
+	// "can't start yet, not at capacity."
+	ErrGameSetupNotFull = errors.New("not all players have joined")
 )
 
 // Service implements the game-setup lobby: creating a setup, joining it via
@@ -132,8 +136,27 @@ func (s *Service) JoinGameSetup(ctx context.Context, code string, playerID game.
 	return s.setups.GetGameSetup(ctx, setup.ID)
 }
 
-// StartGame kicks a setup off: only the host may start. Everyone currently
-// in PlayerIDs (the host included, seeded at creation) is randomly shuffled
+// readyToStart reports whether setup has a joined player for every nation
+// on gm — shared by StartGame's hard enforcement and ReadyToStart's
+// read-only check, so the comparison exists in exactly one place.
+func readyToStart(setup *GameSetup, gm *gamemap.GameMap) bool {
+	return len(setup.PlayerIDs) >= len(gm.Nations)
+}
+
+// ReadyToStart reports whether setup has a joined player for every nation
+// on its map — the same check StartGame enforces, exposed read-only for
+// display (e.g. disabling a Start button) before the host even tries.
+func (s *Service) ReadyToStart(ctx context.Context, setup *GameSetup) (ready bool, capacity int, err error) {
+	gm, err := s.maps.GetMap(setup.MapID)
+	if err != nil {
+		return false, 0, fmt.Errorf("failed to get game map %q: %w", setup.MapID, err)
+	}
+	return readyToStart(setup, gm), len(gm.Nations), nil
+}
+
+// StartGame kicks a setup off: only the host may start, and only once
+// every nation on the map has a joined player. Everyone currently in
+// PlayerIDs (the host included, seeded at creation) is randomly shuffled
 // onto the map's nations — capacity is already enforced at join time, so
 // there are never more players than nations to assign. The real
 // core/game.Game is created by delegating to
@@ -150,6 +173,9 @@ func (s *Service) StartGame(ctx context.Context, gameID game.GameID, requesterID
 	gm, err := s.maps.GetMap(setup.MapID)
 	if err != nil {
 		return fmt.Errorf("failed to get game map %q: %w", setup.MapID, err)
+	}
+	if !readyToStart(setup, gm) {
+		return fmt.Errorf("%w: %d/%d players joined", ErrGameSetupNotFull, len(setup.PlayerIDs), len(gm.Nations))
 	}
 
 	nations := slices.Clone(gm.Nations)

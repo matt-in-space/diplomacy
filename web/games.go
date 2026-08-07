@@ -108,7 +108,82 @@ func handleGameSetupLobby(lobbyService *lobby.Service, authService *auth.Service
 		}
 		data.Players = lobbyPlayerRows(r, authService, setup, data.CurrentPlayer)
 
+		if status == lobby.StatusPending {
+			ready, capacity, err := lobbyService.ReadyToStart(r.Context(), setup)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			data.ReadyToStart, data.Capacity = ready, capacity
+		}
+
 		if err := gameSetupLobbyTemplate.ExecuteTemplate(w, "layout", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
+func handleStartGame(lobbyService *lobby.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := game.GameID(r.PathValue("id"))
+
+		// Guaranteed present: this route is wrapped in requireAuthentication.
+		player, _ := currentPlayer(r)
+
+		if err := lobbyService.StartGame(r.Context(), id, player.ID); err != nil {
+			setFlash(w, "error", startGameErrorMessage(err))
+			http.Redirect(w, r, "/games/"+string(id)+"/lobby", http.StatusSeeOther)
+			return
+		}
+
+		http.Redirect(w, r, "/games/"+string(id), http.StatusSeeOther)
+	}
+}
+
+// startGameErrorMessage mirrors joinErrorMessage's shape — StartGame's
+// sentinel errors become copy a host would understand, not the raw wrapped
+// error string.
+func startGameErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, lobby.ErrNotHost):
+		return "Only the host can start the game."
+	case errors.Is(err, lobby.ErrGameSetupNotFull):
+		return "Waiting for all players to join before starting."
+	case errors.Is(err, lobby.ErrGameSetupNotOpen):
+		return "This game has already started or been cancelled."
+	default:
+		return "Something went wrong. Please try again."
+	}
+}
+
+func handleGame(lobbyService *lobby.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := game.GameID(r.PathValue("id"))
+
+		setup, err := lobbyService.GetGameSetup(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, lobby.ErrGameSetupNotFound) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		status, err := lobbyService.StatusFor(r.Context(), setup)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Pending or cancelled: nothing to show here yet — send the visitor
+		// to the lobby, which already knows how to render either state.
+		if status != lobby.StatusActive {
+			http.Redirect(w, r, "/games/"+string(id)+"/lobby", http.StatusSeeOther)
+			return
+		}
+
+		if err := gameTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

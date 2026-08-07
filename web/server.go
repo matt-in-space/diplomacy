@@ -35,6 +35,8 @@ func NewMux(authService *auth.Service, lobbyService *lobby.Service) http.Handler
 	mux.Handle("GET /games/join", requireAuthentication(http.HandlerFunc(handleJoinGameForm)))
 	mux.Handle("POST /games/join", requireAuthentication(handleJoinGameSubmit(lobbyService)))
 	mux.Handle("GET /games/{id}/lobby", requireAuthentication(handleGameSetupLobby(lobbyService, authService)))
+	mux.Handle("POST /games/{id}/start", requireAuthentication(handleStartGame(lobbyService)))
+	mux.Handle("GET /games/{id}", requireAuthentication(handleGame(lobbyService)))
 
 	// Global: more than just auth routes will eventually want to know who's
 	// asking (nav, later pages). Never blocks a request — see
