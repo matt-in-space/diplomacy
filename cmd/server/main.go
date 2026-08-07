@@ -1,29 +1,40 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"log"
 	"net/http"
 
 	"github.com/matt-in-space/diplomacy/application/auth"
 	"github.com/matt-in-space/diplomacy/application/gameplay"
+	"github.com/matt-in-space/diplomacy/application/lobby"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 	"github.com/matt-in-space/diplomacy/infrastructure/memory"
 	"github.com/matt-in-space/diplomacy/web"
 )
 
 func main() {
+	seed := flag.Bool("seed", false, "create a fixed development user (user@example.com / password) on startup")
+	flag.Parse()
+
 	gr := memory.NewGameRepository()
 	pr := memory.NewPlayerRepository()
 	sr := memory.NewSessionRepository()
+	gsr := memory.NewGameSetupRepository()
 
 	maps := loadMaps()
 	mr := memory.NewGameMapRepository(maps...)
 
-	s := gameplay.NewGameplayService(gr, mr)
-	_ = s // not wired to any handler yet — that's the game/SPA phase
+	gameplayService := gameplay.NewGameplayService(gr, mr)
+	lobbyService := lobby.NewService(gsr, gr, mr, gameplayService)
 
 	authService := auth.NewService(pr, sr)
-	mux := web.NewMux(authService)
+	if *seed {
+		seedDevUser(context.Background(), authService)
+	}
+
+	mux := web.NewMux(authService, lobbyService)
 
 	const addr = ":8080"
 	log.Printf("Diplomacy server listening on %s", addr)

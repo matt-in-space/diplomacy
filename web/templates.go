@@ -13,7 +13,9 @@ func parsePage(files ...string) *template.Template {
 }
 
 var (
-	homeTemplate   = parsePage("templates/home.html")
-	loginTemplate  = parsePage("templates/login.html")
-	signupTemplate = parsePage("templates/signup.html")
+	homeTemplate           = parsePage("templates/home.html")
+	loginTemplate          = parsePage("templates/login.html")
+	signupTemplate         = parsePage("templates/signup.html")
+	gamesNewTemplate       = parsePage("templates/games_new.html")
+	gameSetupLobbyTemplate = parsePage("templates/game_setup_lobby.html")
 )

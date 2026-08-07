@@ -3,12 +3,17 @@ package web
 import (
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/matt-in-space/diplomacy/application/auth"
 )
 
 func handleSignupForm(w http.ResponseWriter, r *http.Request) {
-	if err := signupTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+	data := authFormPageData{
+		pageData: newPageData(w, r),
+		Next:     safeRedirectTarget(r.URL.Query().Get("next")),
+	}
+	if err := signupTemplate.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -19,21 +24,26 @@ func handleSignupSubmit(authService *auth.Service) http.HandlerFunc {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
+		next := safeRedirectTarget(r.PostFormValue("next"))
 
 		_, err := authService.Signup(r.Context(), r.PostFormValue("email"), r.PostFormValue("display_name"), r.PostFormValue("password"))
 		if err != nil {
 			setFlash(w, "error", err.Error())
-			http.Redirect(w, r, "/signup", http.StatusSeeOther)
+			http.Redirect(w, r, "/signup"+nextQuery(next), http.StatusSeeOther)
 			return
 		}
 
 		setFlash(w, "success", "Account created. Please log in.")
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/login"+nextQuery(next), http.StatusSeeOther)
 	}
 }
 
 func handleLoginForm(w http.ResponseWriter, r *http.Request) {
-	if err := loginTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+	data := authFormPageData{
+		pageData: newPageData(w, r),
+		Next:     safeRedirectTarget(r.URL.Query().Get("next")),
+	}
+	if err := loginTemplate.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -44,6 +54,7 @@ func handleLoginSubmit(authService *auth.Service) http.HandlerFunc {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
+		next := safeRedirectTarget(r.PostFormValue("next"))
 
 		session, err := authService.Login(r.Context(), r.PostFormValue("email"), r.PostFormValue("password"))
 		if err != nil {
@@ -52,7 +63,7 @@ func handleLoginSubmit(authService *auth.Service) http.HandlerFunc {
 				message = "Invalid email or password."
 			}
 			setFlash(w, "error", message)
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			http.Redirect(w, r, "/login"+nextQuery(next), http.StatusSeeOther)
 			return
 		}
 
@@ -68,8 +79,18 @@ func handleLoginSubmit(authService *auth.Service) http.HandlerFunc {
 			// set before any real deployment.
 		})
 		setFlash(w, "success", "Logged in.")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
+}
+
+// nextQuery renders a "?next=..." query string for appending to a redirect
+// target, or "" if next is just the default "/" — no point cluttering
+// every ordinary signup/login URL with a no-op query param.
+func nextQuery(next string) string {
+	if next == "" || next == "/" {
+		return ""
+	}
+	return "?next=" + url.QueryEscape(next)
 }
 
 func handleLogout(authService *auth.Service) http.HandlerFunc {

@@ -58,6 +58,13 @@ func (s *Service) StatusFor(ctx context.Context, setup *GameSetup) (Status, erro
 	return StatusActive, nil
 }
 
+// GetGameSetup returns the setup by ID, for read-only display — unlike
+// loadHostedSetup, this doesn't check who's asking or compute status; a
+// caller that needs status too should call StatusFor on the result.
+func (s *Service) GetGameSetup(ctx context.Context, id game.GameID) (*GameSetup, error) {
+	return s.setups.GetGameSetup(ctx, id)
+}
+
 // CreateGameSetup starts a new lobby for the given map, hosted by hostID.
 // The host is seeded into PlayerIDs immediately — they don't join via their
 // own invite link, and count toward capacity and start-readiness like

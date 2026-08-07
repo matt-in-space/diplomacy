@@ -11,7 +11,8 @@
 	<input type="password" id="password" name="password" autocomplete="new-password" minlength="8" required>
 	<small>At least 8 characters.</small>
 
+	<input type="hidden" name="next" value="{{.Next}}">
 	<button type="submit">Sign up</button>
 </form>
-<p>Already have an account? <a href="/login">Log in</a></p>
+<p>Already have an account? <a href="/login{{if ne .Next "/"}}?next={{.Next}}{{end}}">Log in</a></p>
 {{end}}

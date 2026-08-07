@@ -207,10 +207,12 @@ to avoid throwaway work in the next one, not just picked for convenience:
    Design captured in full in `docs/game-setup.md`. Backend plumbing done:
    a new `application/lobby` package (`GameSetup` and its repository) and
    `application/gameplay`'s first-ever "create a game" use case
-   (`GameplayService.CreateGame`), both against `infrastructure/memory`.
-   Still needed: the `web` layer (routes, templates,
-   `cmd/server/main.go` wiring) and a new
-   `GameRepository.ListGamesForPlayer` method. This is the prerequisite for
+   (`GameplayService.CreateGame`), both against `infrastructure/memory` and
+   now wired into `cmd/server/main.go`. The create flow is live in `web`
+   too: home page → `/games/new` → `/games/{id}/lobby`, gated by a new
+   `requireAuthentication` middleware. Still needed: the `/games` list (and
+   a new `GameRepository.ListGamesForPlayer` method), Start/Cancel actions
+   on the lobby page, and anything join-related. This is the prerequisite for
    step 3 — there's no game to hand off to the SPA until a setup can
    actually produce one.
 3. **The game SPA**, still against in-memory repositories, built on top of

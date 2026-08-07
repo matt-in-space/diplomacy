@@ -190,47 +190,40 @@ over stored games' `Assignments`. Postgres will eventually want a real
 indexed query against the `games` metadata table instead of scanning
 JSONB — already the documented plan, not a new decision.
 
-### `web` — new routes (not yet built)
+### `web` — routes
 
 ```
-GET  /games                    require login — lists: active games (GameplayService.ListGamesForPlayer),
-                                setups you host or joined (GameSetupRepository.ListGameSetupsForPlayer)
-GET  /games/new                require login — create-game form (map choice trivial: one option today)
-POST /games                    creates a GameSetup, redirects to its lobby page
-GET  /games/{id}               require login — pending: lobby view (invite link, joined-players list, start/cancel, host-only actions);
-                                active: minimal stub ("game started" — the real game screen is future work)
-POST /games/{id}/start         host-only
-POST /games/{id}/cancel        host-only
-GET  /join/{code}              require login (redirect through /login?next=... if not) — joins the caller, then redirects to /games/{id}
+GET  /games/new                 require login — create-game form (implemented; one map option today)
+POST /games                     creates a GameSetup, redirects to /games/{id}/lobby (implemented)
+GET  /games/{id}/lobby          require login — read-only status: pending/active/cancelled, host,
+                                 player count (implemented)
+GET  /games                     not yet built — needs GameplayService.ListGamesForPlayer
+POST /games/{id}/start          not yet built — a deliberate follow-up once Active-state
+POST /games/{id}/cancel         not yet built — rendering (below) is worth deciding
+GET  /games/join, GET /join/{code}   not yet built — "no links right now"; joining is
+                                 deferred entirely for now, not just its UI
 ```
 
-The old per-invite `GET/POST /invites/{code}/...` routes are gone along with
-the `Invite` entity — joining is a single `GET /join/{code}` that both
-resolves the code and performs the join in one step, since there's nothing
-left to accept or decline.
+`/games/{id}` itself (as a status-based redirector to `/lobby` vs. wherever
+an active game eventually renders) was considered and deliberately not
+built yet — `/games/{id}/lobby` is reached directly from the create flow,
+and nothing yet needs the redirector's smarts since Start doesn't exist to
+flip a setup to Active.
 
-New middleware, alongside `web/session_middleware.go`'s existing
-`withCurrentPlayer`:
+`requireAuthentication` (`web/session_middleware.go`) is built — the
+blocking counterpart to `withCurrentPlayer`'s non-blocking style, redirects
+to `/login?next=<path>` if there's no current player. `handleLoginForm`
+renders `next` into a hidden field; `handleLoginSubmit` redirects there on
+success, validated through `safeRedirectTarget` (same-site relative path
+only — starts with exactly one `/`, never `//` or a full URL) so it can't
+become an open redirect. `handleSignupSubmit` also carries `next` through
+now (appended onto its redirect to `/login`), and the login/signup pages'
+cross-links to each other preserve it too — closing the gap this document
+used to flag ("doesn't currently carry `next` through at all").
 
-```go
-// requireAuthentication redirects to /login?next=<this URL> if there's no
-// current player. The counterpart to withCurrentPlayer's non-blocking
-// style — the first routes in the app that actually need one.
-func requireAuthentication(next http.Handler) http.Handler
-```
-
-`handleLoginForm` renders the `next` query param into a hidden form field;
-`handleLoginSubmit` redirects there instead of `/` on success — but only if
-it's a validated same-site relative path (starts with exactly one `/`,
-never `//` or a full URL), to avoid becoming an open redirect. Worth
-deciding when this gets built: `handleSignupSubmit` doesn't currently carry
-`next` through at all, so someone who clicks a join link with no account
-yet would land on `/` after signing up rather than back at `/join/{code}`.
-
-New templates, through the existing `parsePage("templates/<name>.html")` +
-shared-layout pattern: `games.html` (the list), `games_new.html`,
-`game_setup.html` (lobby detail — shows the invite link for the host to
-copy).
+Templates, through the existing `parsePage("templates/<name>.html")` +
+shared-layout pattern: `games_new.html`, `game_setup_lobby.html`. A `games`
+list page and a join-related page are not yet built, per the routes above.
 
 ## Out of scope
 
@@ -247,6 +240,13 @@ copy).
 ## Status
 
 Backend plumbing implemented: `application/lobby` (types, repository
-interface, service) and its `infrastructure/memory` implementation, plus
-`application/gameplay.CreateGame`. The `web` layer — routes, templates,
-`cmd/server/main.go` wiring — is not yet built.
+interface, service, including a `GetGameSetup` read-only passthrough for
+the web layer) and its `infrastructure/memory` implementation, plus
+`application/gameplay.CreateGame`. `cmd/server/main.go` wires it all up —
+`lobby.Service` is no longer discarded.
+
+Web: the create-game flow is implemented end to end (home page link →
+`/games/new` → `POST /games` → `/games/{id}/lobby`), gated by the new
+`requireAuthentication` middleware with a working `next` round-trip through
+both login and signup. Still open: the `/games` list, Start/Cancel actions
+on the lobby page, and anything join-related.

@@ -10,7 +10,7 @@ import (
 )
 
 func TestHomeRendersHelloPage(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t))
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -28,7 +28,7 @@ func TestHomeRendersHelloPage(t *testing.T) {
 }
 
 func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t))
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -44,7 +44,7 @@ func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
 }
 
 func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t))
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -64,7 +64,7 @@ func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
 }
 
 func TestStaticServesPicoCSS(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t))
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/static/pico.min.css", nil)
 	rec := httptest.NewRecorder()
@@ -79,7 +79,7 @@ func TestStaticServesPicoCSS(t *testing.T) {
 }
 
 func TestUnknownStaticFileReturnsNotFound(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t))
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
 
 	req := httptest.NewRequest(http.MethodGet, "/static/missing.css", nil)
 	rec := httptest.NewRecorder()

@@ -14,7 +14,7 @@ func TestWesternEurope(t *testing.T) {
 	if gm == nil {
 		t.Fatal("WesternEurope returned nil game map")
 	}
-	if gm.ID != "western-europe-subset" {
-		t.Fatalf("ID = %q, want western-europe-subset", gm.ID)
+	if gm.ID != gamemap.WesternEuropeMapID {
+		t.Fatalf("ID = %q, want %q", gm.ID, gamemap.WesternEuropeMapID)
 	}
 }

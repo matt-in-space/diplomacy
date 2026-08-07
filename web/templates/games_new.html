@@ -1,0 +1,11 @@
+{{define "content"}}
+<h1>Create a game</h1>
+<form method="post" action="/games">
+	<label for="map_id">Map</label>
+	<select id="map_id" name="map_id" required>
+		<option value="western-europe-subset">Western Europe (2 players)</option>
+	</select>
+
+	<button type="submit">Create game</button>
+</form>
+{{end}}

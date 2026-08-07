@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>Game lobby</h1>
+<p>Status: <strong>{{.Status}}</strong></p>
+{{if eq .Setup.HostID .CurrentPlayer.ID}}<p>You are the host.</p>{{end}}
+
+{{if eq .Status "pending"}}
+<article>
+	<header><strong>Share this code to invite players</strong></header>
+	<p><code>{{.Setup.InviteCode}}</code></p>
+</article>
+{{end}}
+
+<h2>Players ({{len .Players}})</h2>
+<table>
+	<thead>
+		<tr><th scope="col">Player</th><th scope="col">Role</th></tr>
+	</thead>
+	<tbody>
+		{{range .Players}}
+		<tr>
+			<td>{{.DisplayName}}</td>
+			<td>{{if .IsHost}}Host{{end}}{{if .IsYou}} (you){{end}}</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
+{{end}}

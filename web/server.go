@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/matt-in-space/diplomacy/application/auth"
+	"github.com/matt-in-space/diplomacy/application/lobby"
 )
 
 // NewMux returns the full application handler: routes plus the global
@@ -12,7 +13,7 @@ import (
 // once wrapped in middleware it genuinely isn't a bare mux anymore — and
 // nothing (callers, tests) needs it to be, since ServeHTTP is all
 // http.ListenAndServe or httptest.NewRecorder-based tests ever call.
-func NewMux(authService *auth.Service) http.Handler {
+func NewMux(authService *auth.Service, lobbyService *lobby.Service) http.Handler {
 	mux := http.NewServeMux()
 
 	staticRoot, err := fs.Sub(staticFS, "static")
@@ -28,6 +29,10 @@ func NewMux(authService *auth.Service) http.Handler {
 	mux.Handle("GET /login", redirectIfAuthenticated(http.HandlerFunc(handleLoginForm)))
 	mux.HandleFunc("POST /login", handleLoginSubmit(authService))
 	mux.HandleFunc("POST /logout", handleLogout(authService))
+
+	mux.Handle("GET /games/new", requireAuthentication(http.HandlerFunc(handleNewGameForm)))
+	mux.Handle("POST /games", requireAuthentication(handleCreateGame(lobbyService)))
+	mux.Handle("GET /games/{id}/lobby", requireAuthentication(handleGameSetupLobby(lobbyService, authService)))
 
 	// Global: more than just auth routes will eventually want to know who's
 	// asking (nav, later pages). Never blocks a request — see

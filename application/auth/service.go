@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/matt-in-space/diplomacy/core/game"
 )
 
 var ErrInvalidCredentials = errors.New("invalid email or password")
@@ -127,6 +129,13 @@ func (s *Service) Login(ctx context.Context, email, password string) (*Session, 
 // design.
 func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.sessions.DeleteSession(ctx, token)
+}
+
+// GetPlayer returns the player by ID, for read-only display — e.g.
+// resolving a PlayerID to a DisplayName when rendering a list of
+// participants elsewhere in the app.
+func (s *Service) GetPlayer(ctx context.Context, id game.PlayerID) (*Player, error) {
+	return s.players.GetPlayer(ctx, id)
 }
 
 // Authenticate resolves a session token to the Player it belongs to. It
