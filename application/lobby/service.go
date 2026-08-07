@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/matt-in-space/diplomacy/application/gameplay"
@@ -101,8 +102,12 @@ func (s *Service) CreateGameSetup(ctx context.Context, hostID game.PlayerID, map
 // joining twice, or the host using their own link, succeeds and changes
 // nothing — and capacity-checked against the map's nation count, so a
 // forwarded link can't overfill a lobby past what StartGame could ever
-// assign.
+// assign. code is normalized (trimmed, uppercased) here rather than by
+// every caller, since the code's alphabet (internal/random's codeAlphabet)
+// is uppercase-only and a human is expected to type this one by hand.
 func (s *Service) JoinGameSetup(ctx context.Context, code string, playerID game.PlayerID) (*GameSetup, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+
 	setup, err := s.setups.GetGameSetupByInviteCode(ctx, code)
 	if err != nil {
 		return nil, err

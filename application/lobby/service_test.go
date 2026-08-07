@@ -3,6 +3,7 @@ package lobby_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/matt-in-space/diplomacy/application/gameplay"
@@ -84,6 +85,26 @@ func TestJoinGameSetupAddsPlayer(t *testing.T) {
 	updated, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a")
 	if err != nil {
 		t.Fatalf("JoinGameSetup failed: %v", err)
+	}
+	if len(updated.PlayerIDs) != 2 {
+		t.Fatalf("PlayerIDs = %v, want 2 entries", updated.PlayerIDs)
+	}
+}
+
+func TestJoinGameSetupNormalizesCode(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+
+	// The code alphabet is uppercase-only; a lowercased, whitespace-padded
+	// version (as a human might type it) should still match.
+	messyCode := "  " + strings.ToLower(setup.InviteCode) + "  "
+	updated, err := service.JoinGameSetup(ctx, messyCode, "player-a")
+	if err != nil {
+		t.Fatalf("JoinGameSetup with lowercased/padded code failed: %v", err)
 	}
 	if len(updated.PlayerIDs) != 2 {
 		t.Fatalf("PlayerIDs = %v, want 2 entries", updated.PlayerIDs)

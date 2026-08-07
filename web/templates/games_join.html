@@ -1,0 +1,10 @@
+{{define "content"}}
+<h1>Join a game</h1>
+<form method="post" action="/games/join">
+	<label for="code">Invite code</label>
+	<input type="text" id="code" name="code" required autocomplete="off"
+	       autocapitalize="characters" maxlength="8" placeholder="e.g. 3B4VSMRV">
+
+	<button type="submit">Join game</button>
+</form>
+{{end}}

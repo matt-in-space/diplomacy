@@ -17,5 +17,6 @@ var (
 	loginTemplate          = parsePage("templates/login.html")
 	signupTemplate         = parsePage("templates/signup.html")
 	gamesNewTemplate       = parsePage("templates/games_new.html")
+	gamesJoinTemplate      = parsePage("templates/games_join.html")
 	gameSetupLobbyTemplate = parsePage("templates/game_setup_lobby.html")
 )

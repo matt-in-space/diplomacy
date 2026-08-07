@@ -1,5 +1,10 @@
 {{define "content"}}
 <h1>Hello, Diplomacy</h1>
 <p>The server is running.</p>
-{{if .CurrentPlayer}}<p><a href="/games/new" role="button">Create Game</a></p>{{end}}
+{{if .CurrentPlayer}}
+<p>
+	<a href="/games/new" role="button">Create Game</a>
+	<a href="/games/join" role="button" class="secondary">Join Game</a>
+</p>
+{{end}}
 {{end}}

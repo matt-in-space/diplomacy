@@ -37,6 +37,50 @@ func handleCreateGame(lobbyService *lobby.Service) http.HandlerFunc {
 	}
 }
 
+func handleJoinGameForm(w http.ResponseWriter, r *http.Request) {
+	if err := gamesJoinTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleJoinGameSubmit(lobbyService *lobby.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		// Guaranteed present: this route is wrapped in requireAuthentication.
+		player, _ := currentPlayer(r)
+
+		setup, err := lobbyService.JoinGameSetup(r.Context(), r.PostFormValue("code"), player.ID)
+		if err != nil {
+			setFlash(w, "error", joinErrorMessage(err))
+			http.Redirect(w, r, "/games/join", http.StatusSeeOther)
+			return
+		}
+
+		http.Redirect(w, r, "/games/"+string(setup.ID)+"/lobby", http.StatusSeeOther)
+	}
+}
+
+// joinErrorMessage turns JoinGameSetup's sentinel errors into copy a player
+// would actually understand, rather than the raw wrapped error string —
+// which for ErrGameSetupNotFound would just echo the code back, not
+// explain what went wrong.
+func joinErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, lobby.ErrGameSetupNotFound):
+		return "That invite code doesn't match a game."
+	case errors.Is(err, lobby.ErrGameSetupFull):
+		return "That game is already full."
+	case errors.Is(err, lobby.ErrGameSetupNotOpen):
+		return "That game has already started or been cancelled."
+	default:
+		return "Something went wrong. Please try again."
+	}
+}
+
 func handleGameSetupLobby(lobbyService *lobby.Service, authService *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := game.GameID(r.PathValue("id"))

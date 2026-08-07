@@ -195,13 +195,18 @@ JSONB — already the documented plan, not a new decision.
 ```
 GET  /games/new                 require login — create-game form (implemented; one map option today)
 POST /games                     creates a GameSetup, redirects to /games/{id}/lobby (implemented)
+GET  /games/join                require login — paste-a-code form (implemented)
+POST /games/join                joins via lobby.Service.JoinGameSetup, redirects to
+                                 /games/{id}/lobby on success, or back to /games/join with
+                                 a specific flash message on failure (implemented)
 GET  /games/{id}/lobby          require login — read-only status: pending/active/cancelled, host,
-                                 player count (implemented)
+                                 player count, players table (implemented)
 GET  /games                     not yet built — needs GameplayService.ListGamesForPlayer
 POST /games/{id}/start          not yet built — a deliberate follow-up once Active-state
 POST /games/{id}/cancel         not yet built — rendering (below) is worth deciding
-GET  /games/join, GET /join/{code}   not yet built — "no links right now"; joining is
-                                 deferred entirely for now, not just its UI
+GET  /join/{code}               deliberately deferred — the code is surfaced today as plain
+                                 text in the lobby's "Share this code" callout, not a link,
+                                 so a clickable /join/{code} URL has no real caller yet
 ```
 
 `/games/{id}` itself (as a status-based redirector to `/lobby` vs. wherever
@@ -222,8 +227,17 @@ cross-links to each other preserve it too — closing the gap this document
 used to flag ("doesn't currently carry `next` through at all").
 
 Templates, through the existing `parsePage("templates/<name>.html")` +
-shared-layout pattern: `games_new.html`, `game_setup_lobby.html`. A `games`
-list page and a join-related page are not yet built, per the routes above.
+shared-layout pattern: `games_new.html`, `games_join.html`,
+`game_setup_lobby.html`. A `games` list page is not yet built, per the
+routes above.
+
+`lobby.Service.JoinGameSetup` normalizes the submitted code (trim,
+uppercase) before looking it up — the code alphabet
+(`internal/random`'s `codeAlphabet`) is uppercase-only, and this is a value
+a human actually types, unlike every other ID in the system. `POST
+/games/join` maps `JoinGameSetup`'s sentinel errors
+(`ErrGameSetupNotFound`/`ErrGameSetupFull`/`ErrGameSetupNotOpen`) to
+specific flash copy rather than echoing the raw wrapped error back.
 
 ## Out of scope
 
@@ -245,8 +259,12 @@ the web layer) and its `infrastructure/memory` implementation, plus
 `application/gameplay.CreateGame`. `cmd/server/main.go` wires it all up —
 `lobby.Service` is no longer discarded.
 
-Web: the create-game flow is implemented end to end (home page link →
-`/games/new` → `POST /games` → `/games/{id}/lobby`), gated by the new
-`requireAuthentication` middleware with a working `next` round-trip through
-both login and signup. Still open: the `/games` list, Start/Cancel actions
-on the lobby page, and anything join-related.
+Web: the create-game flow (home page link → `/games/new` → `POST /games` →
+`/games/{id}/lobby`) and the join-by-code flow (home page link →
+`/games/join` → `POST /games/join` → `/games/{id}/lobby`) are both
+implemented end to end, gated by `requireAuthentication` with a working
+`next` round-trip through both login and signup. The lobby page resolves
+display names for every player via a new `auth.Service.GetPlayer`
+passthrough, rather than showing raw `PlayerID`s. Still open: the `/games`
+list, Start/Cancel actions on the lobby page, and `/join/{code}` as a
+clickable link.
