@@ -41,6 +41,9 @@ func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
 	if !strings.Contains(body, `href="/signup"`) {
 		t.Fatalf("body missing signup link: %q", body)
 	}
+	if strings.Contains(body, "Create Game") {
+		t.Fatalf("anonymous body should not show Create Game: %q", body)
+	}
 }
 
 func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
@@ -58,8 +61,12 @@ func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if body := rec.Body.String(); !strings.Contains(body, "Alice") {
+	body := rec.Body.String()
+	if !strings.Contains(body, "Alice") {
 		t.Fatalf("body missing display name: %q", body)
+	}
+	if !strings.Contains(body, "Create Game") {
+		t.Fatalf("logged-in body should show Create Game: %q", body)
 	}
 }
 
