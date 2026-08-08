@@ -570,7 +570,7 @@ func TestGameRedirectsToLobbyWhilePending(t *testing.T) {
 	}
 }
 
-func TestGameRendersBlankPlaceholderWhenActive(t *testing.T) {
+func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 	lobbyService := newTestLobbyService(t)
 	mux := web.NewMux(newTestAuthService(t), lobbyService)
 
@@ -601,8 +601,12 @@ func TestGameRendersBlankPlaceholderWhenActive(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-	if !strings.Contains(rec.Body.String(), "The game has started") {
-		t.Fatalf("body missing placeholder text: %q", rec.Body.String())
+	body := rec.Body.String()
+	if !strings.Contains(body, `<div id="app"></div>`) {
+		t.Fatalf("body missing the frontend mount point: %q", body)
+	}
+	if !strings.Contains(body, `<script type="module" src="/static/js/main.js">`) {
+		t.Fatalf("body missing the frontend script tag: %q", body)
 	}
 
 	// The lobby page should now report Active status too.

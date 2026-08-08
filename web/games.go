@@ -183,7 +183,12 @@ func handleGame(lobbyService *lobby.Service) http.HandlerFunc {
 			return
 		}
 
-		if err := gameTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
+		// Execute, not ExecuteTemplate — game.html has no {{define}} wrapper
+		// to name, it's parsed standalone (see gameTemplate's doc comment).
+		// No data to pass: the shell is fully static now — the frontend
+		// reads the game ID straight out of the URL itself rather than
+		// having the server duplicate it into a data attribute.
+		if err := gameTemplate.Execute(w, nil); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

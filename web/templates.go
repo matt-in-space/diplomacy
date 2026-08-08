@@ -19,5 +19,11 @@ var (
 	gamesNewTemplate       = parsePage("templates/games_new.html")
 	gamesJoinTemplate      = parsePage("templates/games_join.html")
 	gameSetupLobbyTemplate = parsePage("templates/game_setup_lobby.html")
-	gameTemplate           = parsePage("templates/game.html")
+	// gameTemplate is parsed standalone, not through parsePage — this is
+	// the one page that deliberately doesn't extend layout.html's Pico.css
+	// nav chrome. The game screen owns its own styling entirely (currently
+	// none — it's a placeholder mount point for the TypeScript frontend),
+	// same split docs/user-experience.md draws between the account/lobby
+	// flow and the in-game flow.
+	gameTemplate = template.Must(template.ParseFS(templateFS, "templates/game.html"))
 )

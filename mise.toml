@@ -1,0 +1,23 @@
+[tools]
+go = "1.26.4"
+node = "22"
+
+[tasks."frontend:install"]
+description = "Install frontend npm dependencies"
+dir = "frontend"
+run = "npm install"
+sources = ["package.json", "package-lock.json"]
+outputs = ["node_modules/.package-lock.json"]
+
+[tasks."frontend:build"]
+description = "Compile the TypeScript frontend"
+dir = "frontend"
+depends = ["frontend:install"]
+run = "npm run build"
+sources = ["src/**/*.ts", "tsconfig.json"]
+outputs = ["../web/static/js"]
+
+[tasks.dev]
+description = "Build the frontend and run the dev server (with seeded dev accounts)"
+depends = ["frontend:build"]
+run = "go run ./cmd/server -seed"
