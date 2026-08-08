@@ -6,5 +6,20 @@
 	<a href="/games/new" role="button">Create Game</a>
 	<a href="/games/join" role="button" class="secondary">Join Game</a>
 </p>
+
+{{if .Games}}
+<h2>Your games</h2>
+<table>
+	<thead><tr><th scope="col">Game</th><th scope="col">Status</th></tr></thead>
+	<tbody>
+		{{range .Games}}
+		<tr>
+			<td><a href="{{.Href}}">{{.Label}}</a></td>
+			<td>{{.Status}}</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
+{{end}}
 {{end}}
 {{end}}

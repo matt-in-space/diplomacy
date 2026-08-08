@@ -45,6 +45,9 @@ func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
 	if strings.Contains(body, "Create Game") {
 		t.Fatalf("anonymous body should not show Create Game: %q", body)
 	}
+	if strings.Contains(body, "Your games") {
+		t.Fatalf("anonymous body should not show a games list: %q", body)
+	}
 }
 
 func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
@@ -68,6 +71,97 @@ func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
 	}
 	if !strings.Contains(body, "Create Game") {
 		t.Fatalf("logged-in body should show Create Game: %q", body)
+	}
+	if strings.Contains(body, "Your games") {
+		t.Fatalf("body should not show a games list with no games yet: %q", body)
+	}
+}
+
+func TestHomeShowsPendingGameInList(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, _ := createGame(t, mux, lobbyService, hostCookie)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Your games") {
+		t.Fatalf("body missing the games list heading: %q", body)
+	}
+	if !strings.Contains(body, "Lobby, waiting for players") {
+		t.Fatalf("body missing the pending-status text: %q", body)
+	}
+	if !strings.Contains(body, `href="`+loc+`"`) {
+		t.Fatalf("body missing a link to %q: %q", loc, body)
+	}
+}
+
+func TestHomeShowsActiveGameWithFormattedTurn(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	startReq := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	startReq.AddCookie(hostCookie)
+	startRec := httptest.NewRecorder()
+	mux.ServeHTTP(startRec, startReq)
+	if startRec.Result().StatusCode != http.StatusSeeOther {
+		t.Fatalf("start status = %d, want %d", startRec.Result().StatusCode, http.StatusSeeOther)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Spring 1, awaiting orders") {
+		t.Fatalf("body missing the formatted turn text: %q", body)
+	}
+	if !strings.Contains(body, `href="/games/`+gameID+`"`) {
+		t.Fatalf("body missing a link to /games/%s: %q", gameID, body)
+	}
+}
+
+func TestHomeListsGamesNewestFirst(t *testing.T) {
+	lobbyService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+
+	firstLoc, _ := createGame(t, mux, lobbyService, hostCookie)
+	secondLoc, _ := createGame(t, mux, lobbyService, hostCookie)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	firstIdx := strings.Index(body, `href="`+firstLoc+`"`)
+	secondIdx := strings.Index(body, `href="`+secondLoc+`"`)
+	if firstIdx == -1 || secondIdx == -1 {
+		t.Fatalf("body missing a link to one of the created games: %q", body)
+	}
+	if secondIdx > firstIdx {
+		t.Fatalf("expected the second (newer) game to render before the first: %q", body)
 	}
 }
 

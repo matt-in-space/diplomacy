@@ -70,6 +70,19 @@ func (s *Service) GetGameSetup(ctx context.Context, id game.GameID) (*GameSetup,
 	return s.setups.GetGameSetup(ctx, id)
 }
 
+// ListGameSetupsForPlayer returns every setup playerID hosts or has
+// joined — read-only, same shape as GetGameSetup.
+func (s *Service) ListGameSetupsForPlayer(ctx context.Context, playerID game.PlayerID) ([]*GameSetup, error) {
+	return s.setups.ListGameSetupsForPlayer(ctx, playerID)
+}
+
+// GetGame returns the underlying core/game.Game for an active setup — for
+// read-only display (e.g. the current turn/phase on a games list). Returns
+// gameplay.ErrGameNotFound if the setup hasn't been started yet.
+func (s *Service) GetGame(ctx context.Context, id game.GameID) (gameplay.StoredGame, error) {
+	return s.games.GetGame(ctx, id)
+}
+
 // CreateGameSetup starts a new lobby for the given map, hosted by hostID.
 // The host is seeded into PlayerIDs immediately — they don't join via their
 // own invite link, and count toward capacity and start-readiness like

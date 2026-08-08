@@ -77,3 +77,19 @@ type gamePageData struct {
 	GameID string
 	MapID  string
 }
+
+// homePageData is what the home page needs beyond the common fields: a
+// resolved, ready-to-render list of the current player's games. Nil for an
+// anonymous visitor — homeGameRows is only ever called once there's a
+// CurrentPlayer to list games for.
+type homePageData struct {
+	pageData
+	Games []homeGameRow
+}
+
+type homeGameRow struct {
+	GameID string // full ID, for the href
+	Label  string // short display label, e.g. "Game 1a2b3c4d"
+	Href   string // /games/{id}/lobby (pending/cancelled) or /games/{id} (active)
+	Status string // "Lobby, waiting for players" / "Spring 1, awaiting orders" / "Cancelled"
+}

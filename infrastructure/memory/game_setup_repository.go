@@ -151,6 +151,12 @@ func (r *GameSetupRepository) ListGameSetupsForPlayer(ctx context.Context, playe
 		setup = detachedGameSetup(setup)
 		setups = append(setups, &setup)
 	}
+
+	// Map iteration order is randomized — without an explicit sort, callers
+	// would see this list reshuffle on every call. Newest first.
+	slices.SortFunc(setups, func(a, b *lobby.GameSetup) int {
+		return b.CreatedAt.Compare(a.CreatedAt)
+	})
 	return setups, nil
 }
 

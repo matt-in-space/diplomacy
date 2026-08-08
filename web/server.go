@@ -21,7 +21,7 @@ func NewMux(authService *auth.Service, lobbyService *lobby.Service) http.Handler
 		panic(err) // embedded at build time; a failure here is a build bug
 	}
 
-	mux.HandleFunc("GET /", handleHome)
+	mux.Handle("GET /", handleHome(lobbyService))
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticRoot)))
 
 	mux.Handle("GET /signup", redirectIfAuthenticated(http.HandlerFunc(handleSignupForm)))

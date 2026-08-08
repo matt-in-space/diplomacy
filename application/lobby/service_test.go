@@ -435,3 +435,74 @@ func TestCancelGameSetupRejectsAlreadyStarted(t *testing.T) {
 		t.Fatalf("CancelGameSetup error = %v, want ErrGameSetupNotOpen", err)
 	}
 }
+
+func TestListGameSetupsForPlayerReturnsHostedAndJoined(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup failed: %v", err)
+	}
+
+	hostSetups, err := service.ListGameSetupsForPlayer(ctx, "host-a")
+	if err != nil {
+		t.Fatalf("ListGameSetupsForPlayer(host) failed: %v", err)
+	}
+	if len(hostSetups) != 1 || hostSetups[0].ID != setup.ID {
+		t.Fatalf("ListGameSetupsForPlayer(host) = %v, want [%q]", hostSetups, setup.ID)
+	}
+
+	joinerSetups, err := service.ListGameSetupsForPlayer(ctx, "player-a")
+	if err != nil {
+		t.Fatalf("ListGameSetupsForPlayer(joiner) failed: %v", err)
+	}
+	if len(joinerSetups) != 1 || joinerSetups[0].ID != setup.ID {
+		t.Fatalf("ListGameSetupsForPlayer(joiner) = %v, want [%q]", joinerSetups, setup.ID)
+	}
+}
+
+func TestGetGameReturnsTheStartedGame(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-a"); err != nil {
+		t.Fatalf("JoinGameSetup(player-a) failed: %v", err)
+	}
+	if _, err := service.JoinGameSetup(ctx, setup.InviteCode, "player-b"); err != nil {
+		t.Fatalf("JoinGameSetup(player-b) failed: %v", err)
+	}
+	if err := service.StartGame(ctx, setup.ID, "host-a"); err != nil {
+		t.Fatalf("StartGame failed: %v", err)
+	}
+
+	stored, err := service.GetGame(ctx, setup.ID)
+	if err != nil {
+		t.Fatalf("GetGame failed: %v", err)
+	}
+	if stored.Game.ID != setup.ID {
+		t.Fatalf("Game.ID = %q, want %q", stored.Game.ID, setup.ID)
+	}
+}
+
+func TestGetGameRejectsUnstartedSetup(t *testing.T) {
+	service, _, _ := newTestService(t)
+	ctx := context.Background()
+
+	setup, err := service.CreateGameSetup(ctx, "host-a", "test-map")
+	if err != nil {
+		t.Fatalf("CreateGameSetup failed: %v", err)
+	}
+
+	_, err = service.GetGame(ctx, setup.ID)
+	if !errors.Is(err, gameplay.ErrGameNotFound) {
+		t.Fatalf("GetGame error = %v, want ErrGameNotFound", err)
+	}
+}

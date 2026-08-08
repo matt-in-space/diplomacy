@@ -195,13 +195,22 @@ func TestGameSetupRepositoryListGameSetupsForPlayer(t *testing.T) {
 	repo := NewGameSetupRepository()
 	ctx := context.Background()
 
-	if err := repo.CreateGameSetup(ctx, testGameSetup("game-a", "player-a", "code-a")); err != nil {
+	// Distinct CreatedAt values (testGameSetup's default is identical
+	// across every call) so the newest-first sort is actually exercised,
+	// not just membership.
+	setupA := testGameSetup("game-a", "player-a", "code-a")
+	setupA.CreatedAt = time.Unix(100, 0).UTC()
+	if err := repo.CreateGameSetup(ctx, setupA); err != nil {
 		t.Fatalf("Create game-a failed: %v", err)
 	}
-	if err := repo.CreateGameSetup(ctx, testGameSetup("game-b", "player-c", "code-b")); err != nil {
+	setupB := testGameSetup("game-b", "player-c", "code-b")
+	setupB.CreatedAt = time.Unix(200, 0).UTC()
+	if err := repo.CreateGameSetup(ctx, setupB); err != nil {
 		t.Fatalf("Create game-b failed: %v", err)
 	}
-	if err := repo.CreateGameSetup(ctx, testGameSetup("game-c", "player-b", "code-c")); err != nil {
+	setupC := testGameSetup("game-c", "player-b", "code-c")
+	setupC.CreatedAt = time.Unix(300, 0).UTC()
+	if err := repo.CreateGameSetup(ctx, setupC); err != nil {
 		t.Fatalf("Create game-c failed: %v", err)
 	}
 	// player-a joins game-b as a non-host — ListGameSetupsForPlayer should
@@ -217,12 +226,9 @@ func TestGameSetupRepositoryListGameSetupsForPlayer(t *testing.T) {
 	if len(setups) != 2 {
 		t.Fatalf("len(setups) = %d, want 2", len(setups))
 	}
-	ids := map[game.GameID]bool{}
-	for _, s := range setups {
-		ids[s.ID] = true
-	}
-	if !ids["game-a"] || !ids["game-b"] {
-		t.Fatalf("setups = %v, want game-a (hosted) and game-b (joined)", ids)
+	// Newest first: game-b (CreatedAt 200) before game-a (CreatedAt 100).
+	if setups[0].ID != "game-b" || setups[1].ID != "game-a" {
+		t.Fatalf("setups = [%q %q], want [game-b game-a] (newest first)", setups[0].ID, setups[1].ID)
 	}
 }
 
