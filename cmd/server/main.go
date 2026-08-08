@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	seed := flag.Bool("seed", false, "create fixed development users (user1@example.com, user2@example.com — password: password) on startup")
+	seed := flag.Bool("seed", false, "create fixed development users (user1@example.com, user2@example.com — password: password) and a pending western-europe-subset game (user1 hosting, user2 joined) on startup")
 	flag.Parse()
 
 	gr := memory.NewGameRepository()
@@ -31,7 +31,8 @@ func main() {
 
 	authService := auth.NewService(pr, sr)
 	if *seed {
-		seedDevUsers(context.Background(), authService)
+		players := seedDevUsers(context.Background(), authService)
+		seedDevGame(context.Background(), lobbyService, players)
 	}
 
 	mux := web.NewMux(authService, lobbyService)

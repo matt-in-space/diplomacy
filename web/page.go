@@ -67,3 +67,13 @@ type lobbyPlayerRow struct {
 	IsHost      bool
 	IsYou       bool
 }
+
+// gamePageData is what the game screen's shell needs: the two IDs the
+// frontend can't derive on its own — GameID (no longer parsed from the
+// URL — see gameTemplate's doc comment) and MapID, so it knows which
+// map's static visual data to fetch. Both come straight off the GameSetup
+// handleGame already loaded to check status; nothing new to fetch.
+type gamePageData struct {
+	GameID string
+	MapID  string
+}

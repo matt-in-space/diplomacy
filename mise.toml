@@ -17,6 +17,13 @@ run = "npm run build"
 sources = ["src/**/*.ts", "tsconfig.json"]
 outputs = ["../web/static/js"]
 
+[tasks."frontend:test"]
+description = "Run the frontend's TypeScript test suite"
+dir = "frontend"
+depends = ["frontend:install"]
+run = "npm run test"
+sources = ["src/**/*.ts", "tsconfig.json", "tsconfig.test.json"]
+
 [tasks.dev]
 description = "Build the frontend and run the dev server (with seeded dev accounts)"
 depends = ["frontend:build"]

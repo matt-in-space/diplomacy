@@ -1,36 +1,42 @@
-import { createStore } from "./store.js";
+import { loadMapData } from "./mapData.js";
+import { renderMap } from "./mapRender.js";
 
-// GameState is just enough to prove the pipe works end to end: TypeScript
-// compiles, the browser resolves the native ES module import, the mount
-// point is found, and the game ID (read from the URL itself, not handed
-// down by the Go-rendered shell) makes it onto the page. Real game state
-// (units, orders, provinces) is future work, once there's a REST
-// API/WebSocket protocol to model it against.
-interface GameState {
-	gameId: string;
-}
-
-// gameIdFromPath extracts the ID from a /games/{id} path — the single
-// source of truth for which game this is, rather than duplicating it into
-// the DOM via a data attribute the server would have to keep in sync.
-function gameIdFromPath(pathname: string): string {
-	const match = /^\/games\/([^/]+)$/.exec(pathname);
-	if (!match) {
-		throw new Error(`unexpected path for the game screen: ${pathname}`);
+// readMountData is a thin, DOM-decoupled validator — it takes anything
+// with a .dataset shape, not literally an HTMLElement, so it's testable
+// without a real DOM. Both IDs come from the Go-rendered shell
+// (web/templates/game.html), which already has them loaded server-side to
+// render the page at all.
+export function readMountData(mount: {
+	dataset: { gameId?: string; mapId?: string };
+}): { gameId: string; mapId: string } {
+	const { gameId, mapId } = mount.dataset;
+	if (!gameId || !mapId) {
+		throw new Error("missing game/map id on the #app mount element");
 	}
-	return match[1];
+	return { gameId, mapId };
 }
 
-function main(): void {
+async function main(): Promise<void> {
 	const mount = document.getElementById("app");
 	if (!mount) {
 		throw new Error("missing #app mount element");
 	}
 
-	const state = createStore<GameState>({ gameId: gameIdFromPath(window.location.pathname) });
-	state.subscribe((s) => {
-		mount.textContent = `Game ${s.gameId}`;
-	});
+	const { mapId } = readMountData(mount);
+
+	mount.textContent = "Loading map…";
+	try {
+		const mapData = await loadMapData(mapId);
+		mount.textContent = "";
+		renderMap(mount, mapData);
+	} catch (err) {
+		mount.textContent = `Failed to load the map: ${(err as Error).message}`;
+	}
 }
 
-main();
+// Guarded so this module stays importable from a Node test environment
+// (see main.test.ts, which imports readMountData) without trying to touch
+// a nonexistent `document` as a side effect of the import itself.
+if (typeof document !== "undefined") {
+	main();
+}

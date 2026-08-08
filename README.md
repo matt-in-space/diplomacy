@@ -59,8 +59,11 @@ mise run dev # installs frontend deps, builds it, then runs the seeded dev serve
 ```sh
 cd frontend && npm install && npm run build
 cd ..
-go run ./cmd/server            # add -seed to create dev accounts
-                                # (user1@example.com / user2@example.com, password: password)
+go run ./cmd/server            # add -seed to create dev accounts and a
+                                # ready-to-start game (user1@example.com /
+                                # user2@example.com, password: password —
+                                # user1 hosting, user2 already joined; the
+                                # server logs the lobby URL on startup)
 ```
 
 There's no live-reload for either side yet: editing a Go template or the

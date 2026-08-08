@@ -1,0 +1,21 @@
+{
+	"mapId": "western-europe-subset",
+	"_comment": "Schematic placeholder geometry — simple rectangles arranged in roughly the right relative positions, not traced from a real map. Provinces are keyed by the same ProvinceIDs core/gamemap/testdata/western_europe.json uses. Swapping in real traced geometry later only means replacing this file's 'd'/'labelAt'/'coasts' values, no code changes.",
+	"provinces": {
+		"lon": { "d": "M70,20 L180,20 L180,105 L70,105 Z", "labelAt": [125, 62] },
+		"eng": { "d": "M40,110 L290,110 L290,150 L40,150 Z", "labelAt": [165, 130] },
+		"bre": { "d": "M40,155 L180,155 L180,240 L40,240 Z", "labelAt": [110, 197] },
+		"par": { "d": "M185,150 L320,150 L320,240 L185,240 Z", "labelAt": [252, 195] },
+		"gas": { "d": "M40,245 L240,245 L240,315 L40,315 Z", "labelAt": [140, 280] },
+		"mao": { "d": "M0,110 L40,110 L40,460 L0,460 Z", "labelAt": [20, 285] },
+		"por": { "d": "M40,320 L100,320 L100,420 L40,420 Z", "labelAt": [70, 370] },
+		"spa": {
+			"d": "M100,320 L260,320 L260,420 L100,420 Z",
+			"labelAt": [180, 370],
+			"coasts": {
+				"spa-nc": { "d": "M100,320 L260,320 L260,370 L100,370 Z" },
+				"spa-sc": { "d": "M100,370 L260,370 L260,420 L100,420 Z" }
+			}
+		}
+	}
+}

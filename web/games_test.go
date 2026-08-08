@@ -602,8 +602,11 @@ func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `<div id="app"></div>`) {
-		t.Fatalf("body missing the frontend mount point: %q", body)
+	if !strings.Contains(body, `data-game-id="`+gameID+`"`) {
+		t.Fatalf("body missing the game id data attribute: %q", body)
+	}
+	if !strings.Contains(body, `data-map-id="western-europe-subset"`) {
+		t.Fatalf("body missing the map id data attribute: %q", body)
 	}
 	if !strings.Contains(body, `<script type="module" src="/static/js/main.js">`) {
 		t.Fatalf("body missing the frontend script tag: %q", body)
