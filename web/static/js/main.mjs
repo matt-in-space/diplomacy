@@ -1,14 +1,12 @@
-import { loadMapData } from "./mapData.js";
-import { renderMap } from "./mapRender.js";
+import { loadMapData } from "./mapData.mjs";
+import { renderMap } from "./mapRender.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
 // with a .dataset shape, not literally an HTMLElement, so it's testable
 // without a real DOM. Both IDs come from the Go-rendered shell
 // (web/templates/game.html), which already has them loaded server-side to
 // render the page at all.
-export function readMountData(mount: {
-	dataset: { gameId?: string; mapId?: string };
-}): { gameId: string; mapId: string } {
+export function readMountData(mount) {
 	const { gameId, mapId } = mount.dataset;
 	if (!gameId || !mapId) {
 		throw new Error("missing game/map id on the #app mount element");
@@ -16,7 +14,7 @@ export function readMountData(mount: {
 	return { gameId, mapId };
 }
 
-async function main(): Promise<void> {
+async function main() {
 	const mount = document.getElementById("app");
 	if (!mount) {
 		throw new Error("missing #app mount element");
@@ -30,13 +28,13 @@ async function main(): Promise<void> {
 		mount.textContent = "";
 		renderMap(mount, mapData);
 	} catch (err) {
-		mount.textContent = `Failed to load the map: ${(err as Error).message}`;
+		mount.textContent = `Failed to load the map: ${err.message}`;
 	}
 }
 
 // Guarded so this module stays importable from a Node test environment
-// (see main.test.ts, which imports readMountData) without trying to touch
-// a nonexistent `document` as a side effect of the import itself.
+// (see _tests/main.test.mjs, which imports readMountData) without trying
+// to touch a nonexistent `document` as a side effect of the import itself.
 if (typeof document !== "undefined") {
 	main();
 }

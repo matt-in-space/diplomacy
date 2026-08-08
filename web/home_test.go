@@ -194,9 +194,12 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 	var data struct {
 		MapID     string `json:"mapId"`
 		Provinces map[string]struct {
-			D       string    `json:"d"`
-			LabelAt []float64 `json:"labelAt"`
-			Coasts  map[string]struct {
+			Name         string    `json:"name"`
+			Type         string    `json:"type"`
+			SupplyCenter bool      `json:"supplyCenter"`
+			D            string    `json:"d"`
+			LabelAt      []float64 `json:"labelAt"`
+			Coasts       map[string]struct {
 				D string `json:"d"`
 			} `json:"coasts"`
 		} `json:"provinces"`
@@ -211,6 +214,7 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 	// The real province IDs from core/gamemap/testdata/western_europe.json
 	// — every one of them needs a visual entry, or the map can't fully
 	// render.
+	knownTypes := map[string]bool{"inland": true, "coastal": true, "water": true}
 	for _, id := range []string{"par", "bre", "gas", "mao", "eng", "lon", "spa", "por"} {
 		province, ok := data.Provinces[id]
 		if !ok {
@@ -219,6 +223,25 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 		if province.D == "" {
 			t.Fatalf("province %q has an empty path", id)
 		}
+		if province.Name == "" {
+			t.Fatalf("province %q has an empty name", id)
+		}
+		if !knownTypes[province.Type] {
+			t.Fatalf("province %q has an unknown type %q", id, province.Type)
+		}
+	}
+
+	// Supply centers per core/gamemap/testdata/western_europe.json — this
+	// is what drives the thicker supply-center border in game.css.
+	for _, id := range []string{"par", "bre", "lon", "spa", "por"} {
+		if !data.Provinces[id].SupplyCenter {
+			t.Fatalf("province %q should be a supply center", id)
+		}
+	}
+	for _, id := range []string{"gas", "mao", "eng"} {
+		if data.Provinces[id].SupplyCenter {
+			t.Fatalf("province %q should not be a supply center", id)
+		}
 	}
 
 	spa := data.Provinces["spa"]
@@ -226,6 +249,56 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 		if c, ok := spa.Coasts[coast]; !ok || c.D == "" {
 			t.Fatalf("spa missing coast %q with a non-empty path", coast)
 		}
+	}
+}
+
+func TestStaticServesGameCSS(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/static/game.css", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.Len() == 0 {
+		t.Fatal("expected a non-empty CSS body")
+	}
+}
+
+func TestStaticServesMainModule(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/static/js/main.mjs", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.Len() == 0 {
+		t.Fatal("expected a non-empty script body")
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/javascript") {
+		t.Fatalf("Content-Type = %q, want text/javascript", ct)
+	}
+}
+
+// TestStaticDoesNotServeJSTests pins the go:embed underscore-exclusion
+// behavior that keeps web/static/js/_tests/ (test-only code) out of the
+// embedded binary and off the public static route. If _tests/ were ever
+// renamed to something not starting with '_' or '.', this would start
+// failing as the file becomes servable.
+func TestStaticDoesNotServeJSTests(t *testing.T) {
+	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/static/js/_tests/main.test.mjs", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
 

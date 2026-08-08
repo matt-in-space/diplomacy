@@ -608,7 +608,7 @@ func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 	if !strings.Contains(body, `data-map-id="western-europe-subset"`) {
 		t.Fatalf("body missing the map id data attribute: %q", body)
 	}
-	if !strings.Contains(body, `<script type="module" src="/static/js/main.js">`) {
+	if !strings.Contains(body, `<script type="module" src="/static/js/main.mjs">`) {
 		t.Fatalf("body missing the frontend script tag: %q", body)
 	}
 

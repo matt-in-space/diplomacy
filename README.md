@@ -21,9 +21,11 @@ infrastructure/
   memory/       in-memory repository implementations
 web/            Go-rendered account/lobby pages (html/template) and the
                 in-game route's HTML shell; static assets
-frontend/       TypeScript source for the in-game screen — compiled by
-                `tsc` (no bundler) to web/static/js/, loaded as native
-                browser ES modules from web/templates/game.html
+  static/js/    hand-written ES modules (.mjs) for the in-game screen,
+                loaded as native browser modules from
+                web/templates/game.html — no build step, no bundler.
+                Tests live alongside in static/js/_tests/, excluded from
+                go:embed by their leading underscore.
 cmd/
   server/       process wiring; `-seed` creates fixed dev accounts on startup
 docs/           design docs and the project roadmap
@@ -41,24 +43,10 @@ go build ./...
 go test ./...
 ```
 
-Running the server needs the TypeScript frontend compiled first —
-`web/static/js/` is empty until `npm run build` has populated it, and
-`go:embed` bundles whatever's on disk at build time, so skipping this just
-means the game screen serves a 404 for its script. Easiest path, via
-[`mise`](https://mise.jdx.dev) (pins Go 1.26.4 and Node 22 — see
-`mise.toml`):
+The frontend is plain ES modules with no build step, so running the server
+needs nothing beyond Go itself:
 
 ```sh
-mise trust   # first time only, in a fresh clone
-mise run dev # installs frontend deps, builds it, then runs the seeded dev server
-```
-
-`mise run dev` skips the install/build steps on later runs if nothing under
-`frontend/` changed. Without `mise`, the same thing by hand:
-
-```sh
-cd frontend && npm install && npm run build
-cd ..
 go run ./cmd/server            # add -seed to create dev accounts and a
                                 # ready-to-start game (user1@example.com /
                                 # user2@example.com, password: password —
@@ -66,11 +54,18 @@ go run ./cmd/server            # add -seed to create dev accounts and a
                                 # server logs the lobby URL on startup)
 ```
 
-There's no live-reload for either side yet: editing a Go template or the
-compiled frontend both require a rebuild to see the change, same as any
-other `go:embed`'d file. For the frontend specifically, `npm run watch`
-(in `frontend/`) recompiles on save — you'd still restart the server to
-pick the new output up.
+Or via [`mise`](https://mise.jdx.dev) (pins Go 1.26.4 and Node 22 — Node is
+only needed to run the frontend's test suite, see `mise.toml`):
+
+```sh
+mise trust   # first time only, in a fresh clone
+mise run dev # runs the seeded dev server
+```
+
+There's no live-reload: editing a Go template requires a rebuild
+(`go:embed` bundles whatever's on disk at build time), and editing a
+`web/static/` file requires restarting the server for `go:embed` to pick
+it up again. `go:embed` re-reads nothing at request time.
 
 ## Docs
 

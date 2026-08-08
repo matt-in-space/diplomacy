@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readMountData } from "./main.js";
+import { readMountData } from "../main.mjs";
 
 test("readMountData returns both ids when present", () => {
 	const mount = { dataset: { gameId: "game-1", mapId: "western-europe-subset" } };

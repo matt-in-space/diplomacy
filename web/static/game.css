@@ -1,0 +1,56 @@
+/* Game page styling. The game shell (web/templates/game.html) doesn't use
+   Pico — it's a bare div mounted by main.ts — so this covers everything
+   the page needs, not just the map. Plain nested CSS, no naming
+   convention: the game page is its own isolated document (this sheet
+   applies to nothing else), and a single .diplomacy-map root is enough
+   scoping at this size. */
+
+body {
+	margin: 0;
+	font-family: system-ui, sans-serif;
+	background: #f4f1ea;
+}
+
+.diplomacy-map {
+	--land: #e8dcc0;
+	--water: #a8c8e0;
+	--border: #5a5040;
+
+	display: block;
+	max-width: 100%;
+	max-height: 100vh;
+	margin: 0 auto;
+
+	.province {
+		fill: var(--land);
+		stroke: var(--border);
+		stroke-width: 1.5;
+	}
+
+	.province.water {
+		fill: var(--water);
+	}
+
+	.province.supply-center {
+		stroke-width: 3;
+	}
+
+	/* Coasts overlay their parent province, so they must not fill —
+	   otherwise they'd hide the province's own colour and label. A dashed
+	   line is enough to show the division. */
+	.coast {
+		fill: none;
+		stroke: var(--border);
+		stroke-width: 1;
+		stroke-dasharray: 4 3;
+	}
+
+	.label {
+		font-size: 11px;
+		font-weight: 600;
+		text-anchor: middle;
+		fill: #3a3428;
+		pointer-events: none;
+		user-select: none;
+	}
+}
