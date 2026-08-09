@@ -9,9 +9,9 @@ spirit as `docs/user-experience.md`: write decisions down as they're made,
 flag what's still open, let it evolve as it's actually built.
 
 This is squarely account/lobby territory per the two-flow split in
-`docs/user-experience.md` — Go-rendered pages, not the future Svelte SPA.
+`docs/user-experience.md` — Go-rendered pages, not the game screen itself.
 The actual game screen, once a setup goes active, is explicitly out of
-scope here.
+scope here; see `docs/game-ui.md`.
 
 ## Why this isn't just `StoredGame`
 
@@ -256,8 +256,7 @@ specific flash copy rather than echoing the raw wrapped error back. `POST
 
 ## Out of scope
 
-- The actual game screen once a setup goes active (future Svelte SPA work)
-  — `/games/{id}` is a blank placeholder until then.
+- The actual game screen once a setup goes active — see `docs/game-ui.md`.
 - Real email delivery — the invite code is shared as a link, out of band,
   by whoever's hosting.
 - Invite code rotation.

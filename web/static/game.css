@@ -41,15 +41,6 @@ body {
 	.province:hover {
 		fill: var(--hover);
 	}
-
-	.label {
-		font-size: 11px;
-		font-weight: 600;
-		text-anchor: middle;
-		fill: #3a3428;
-		pointer-events: none;
-		user-select: none;
-	}
 }
 
 /* CC BY-SA 3.0 attribution for the map geometry (traced from Wikimedia
