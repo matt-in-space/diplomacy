@@ -30,10 +30,13 @@ framework.
 
 ## Persistent turn/phase status
 
-An always-visible bar showing e.g. "Spring 1902, Accepting Orders."
-Backed by real data already: `core/game.Turn{Season,Phase,Year}` — same
-formatting precedent as `web/home.go`'s `formatTurn`, used for the home
-page's games list.
+Stub built: `.turn-status` in `web/templates/game.html`, a brass-bordered
+plaque overlaying the map's top-left corner (`web/static/game.css`).
+Hardcoded to "Spring 1902, Accepting Orders" — not yet wired to real data.
+
+Not yet done: backed by real data. `core/game.Turn{Season,Phase,Year}` has
+everything needed — same formatting precedent as `web/home.go`'s
+`formatTurn`, used for the home page's games list.
 
 ## Map pan/zoom
 
