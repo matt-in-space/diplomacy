@@ -15,6 +15,7 @@ body {
 	--land: #e8dcc0;
 	--water: #a8c8e0;
 	--border: #5a5040;
+	--hover: #e0b04a;
 
 	display: block;
 	max-width: 100%;
@@ -25,6 +26,8 @@ body {
 		fill: var(--land);
 		stroke: var(--border);
 		stroke-width: 1.5;
+		cursor: pointer;
+		transition: fill 0.1s ease-out;
 	}
 
 	.province.water {
@@ -33,6 +36,10 @@ body {
 
 	.province.supply-center {
 		stroke-width: 3;
+	}
+
+	.province:hover {
+		fill: var(--hover);
 	}
 
 	.label {
