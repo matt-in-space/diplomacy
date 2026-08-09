@@ -5,9 +5,39 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Diplomacy</title>
 	<link rel="stylesheet" href="/static/game.css">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap" rel="stylesheet">
 </head>
 <body>
-	<div id="app" data-game-id="{{.GameID}}" data-map-id="{{.MapID}}"></div>
+	<div class="game-layout">
+		<div class="map-area">
+			<div id="app" data-game-id="{{.GameID}}" data-map-id="{{.MapID}}"></div>
+			<!-- Stub, no real data yet — see docs/game-ui.md. Lives outside
+			     #app: main.mjs replaces #app's whole content while the map
+			     loads, which would wipe anything placed inside it. -->
+			<div class="turn-status">
+				<div class="turn">Spring 1902</div>
+				<div class="phase">Accepting Orders</div>
+			</div>
+		</div>
+		<aside class="sidebar">
+			<section>
+				<h2>Nations</h2>
+				<ul class="nation-list">
+					<li><span class="nation-swatch england"></span>England</li>
+					<li><span class="nation-swatch france"></span>France</li>
+				</ul>
+			</section>
+			<section>
+				<h2>Your Units — France</h2>
+				<ul class="unit-list">
+					<li><span class="unit-label">A Paris</span><span class="unit-order">Hold</span></li>
+					<li><span class="unit-label">F Brest</span><span class="unit-order">Move &rarr; English Channel</span></li>
+				</ul>
+			</section>
+		</aside>
+	</div>
 	<p class="map-credit">Map based on
 		<a href="https://commons.wikimedia.org/wiki/File:Diplomacy.svg">File:Diplomacy.svg</a>
 		by Martin Asal,

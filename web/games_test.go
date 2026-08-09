@@ -612,6 +612,20 @@ func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 		t.Fatalf("body missing the frontend script tag: %q", body)
 	}
 
+	// Stub UI (no real data yet — see docs/game-ui.md): turn/phase status,
+	// nation list, and unit list with fake orders.
+	for _, want := range []string{
+		"Spring 1902", "Accepting Orders",
+		"England", "France",
+		"A Paris", "Hold",
+		"F Brest", "English Channel",
+		"fonts.googleapis.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing stub UI content %q: %q", want, body)
+		}
+	}
+
 	// The lobby page should now report Active status too.
 	lobbyReq := httptest.NewRequest(http.MethodGet, loc, nil)
 	lobbyReq.AddCookie(hostCookie)
