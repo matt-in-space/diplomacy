@@ -56,18 +56,25 @@ scope.
 
 ## Nation sidebar
 
-Each nation in the game listed, each assigned a distinct color. Data:
-`gamemap.GameMap.Nations []NationID`.
+Stub built: `.sidebar` in `web/templates/game.html`/`game.css`, listing
+England and France (hardcoded — matches this game's actual two-nation
+map, not derived from `gamemap.GameMap.Nations`) with a color swatch each.
+Visual direction settled as part of the stub: 1910s, "Toy Soldiers" —
+warm wood/brass chrome (`--wood`/`--brass`/`--ivory`), one webfont (Alfa
+Slab One, headers only — this project's first external dependency, scoped
+tightly on purpose) over the system serif stack. Bold/saturated colors
+rather than the classic muted palette: England `#1e3a6e` (navy), France
+`#4a90d9` (bright royal blue, deliberately lighter than England's navy so
+the two read as distinct).
 
-Hovering a nation's name shows stats and an entry point into the
-messaging area. Messaging itself isn't built yet — this is a placeholder/
-disabled affordance until it exists, not something to fake.
+Not yet done: wired to real data, hovering for stats/messaging. Messaging
+itself isn't built yet — that part stays a placeholder/disabled affordance
+until it exists, not something to fake.
 
-Open question: are colors fixed per nation (classic Diplomacy convention —
-Austria red, England navy, France light blue, Germany black/grey, Italy
-green, Russia white, Turkey yellow) or assigned per-game? Our current
-subset map only has `eng`/`fra`, so this isn't urgent, but worth deciding
-before the full board is in play.
+Open question, still open: are these bold stub colors what ships, or does
+the full 7-power roster get the classic muted palette instead (Austria
+red, Germany black/grey, Italy green, Russia white, Turkey yellow)? Not
+decided — only 2 of 7 nations have a real answer right now.
 
 ## Province ownership tinting
 
@@ -93,10 +100,17 @@ wherever a unit successfully occupies a province — parallel to how
 
 ## Unit list
 
-A sidebar (opposite side, or a toggle) listing your own units — type and
-location. Data: `core/game.Unit{ID,NationID,ProvinceID,Type,Coast,
-DislodgedFrom}` already has everything needed. Open question: does this
-list show only your own units, or everyone's (already visible on the map
+Stub built: second section of `.sidebar`, listing France's two real
+starting units (`A Paris`, `F Brest` — from
+`core/gamemap/testdata/western_europe.json`'s `starting_units`, reused as-
+is since they're already correct) each with a made-up order ("Hold",
+"Move → English Channel") to demonstrate the order slot exists.
+
+Not yet done: wired to real data or real orders. Data:
+`core/game.Unit{ID,NationID,ProvinceID,Type,Coast,DislodgedFrom}` already
+has everything needed for the unit side of this; orders don't exist yet
+(see "Selection & order building" below). Open question: does this list
+show only your own units, or everyone's (already visible on the map
 regardless)?
 
 ## Selection & order building
