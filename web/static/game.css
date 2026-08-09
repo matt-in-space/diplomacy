@@ -9,6 +9,21 @@ body {
 	margin: 0;
 	font-family: system-ui, sans-serif;
 	background: #f4f1ea;
+	height: 100vh;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+/* The map mount — sized by the flex column below (body), not by its own
+   content, so it fills all space not taken by .map-credit. Centers the
+   "Loading map…"/error text before the svg replaces it. */
+#app {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .diplomacy-map {
@@ -18,9 +33,15 @@ body {
 	--hover: #e0b04a;
 
 	display: block;
-	max-width: 100%;
-	max-height: 100vh;
-	margin: 0 auto;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	cursor: grab;
+	touch-action: none;
+
+	&.dragging {
+		cursor: grabbing;
+	}
 
 	.province {
 		fill: var(--land);

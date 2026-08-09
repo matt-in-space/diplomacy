@@ -5,7 +5,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // styling can just be document.getElementById(id) — no separate lookup
 // table to keep in sync. (Coast targeting for fleet orders isn't drawn as
 // a visual boundary — the real board doesn't show it either, it's
-// implicit in adjudication.)
+// implicit in adjudication.) Returns the <svg> element so callers can wire
+// up further behavior (see mapViewport.mjs) without a redundant DOM query.
 export function renderMap(container, mapData) {
 	const svg = document.createElementNS(SVG_NS, "svg");
 	svg.setAttribute("viewBox", "-10 258 208 272");
@@ -16,6 +17,7 @@ export function renderMap(container, mapData) {
 	}
 
 	container.appendChild(svg);
+	return svg;
 }
 
 function makeProvincePath(id, province) {

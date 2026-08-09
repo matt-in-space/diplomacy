@@ -1,5 +1,6 @@
 import { loadMapData } from "./mapData.mjs";
 import { renderMap } from "./mapRender.mjs";
+import { attachMapViewport } from "./mapViewport.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
 // with a .dataset shape, not literally an HTMLElement, so it's testable
@@ -26,7 +27,8 @@ async function main() {
 	try {
 		const mapData = await loadMapData(mapId);
 		mount.textContent = "";
-		renderMap(mount, mapData);
+		const svg = renderMap(mount, mapData);
+		attachMapViewport(svg);
 	} catch (err) {
 		mount.textContent = `Failed to load the map: ${err.message}`;
 	}

@@ -35,6 +35,22 @@ Backed by real data already: `core/game.Turn{Season,Phase,Year}` — same
 formatting precedent as `web/home.go`'s `formatTurn`, used for the home
 page's games list.
 
+## Map pan/zoom
+
+Built. `web/static/js/mapViewport.mjs` — mouse-drag panning, scroll-wheel
+zoom-to-cursor, and arrow-key panning, all clamped so the view can never
+show area outside the map's real content bounds or zoom out further than
+"the whole map fits" (`clampViewBox`/`zoomViewBox`/`panViewBox`, unit
+tested in `_tests/mapViewport.test.mjs`). `0` resets to the fit view.
+
+Decisions: arrow keys, not WASD (the conventional "pan a view" idiom,
+versus WASD's real-time-action-game connotation, which doesn't fit a
+turn-based board game). Gesture-only for this pass, no on-screen +/−/reset
+buttons — easy to add later if discoverability turns out to matter. Uses
+Pointer Events (not legacy mouse events) so single-finger touch dragging
+works for free later; pinch-zoom and on-screen buttons are still out of
+scope.
+
 ## Nation sidebar
 
 Each nation in the game listed, each assigned a distinct color. Data:
