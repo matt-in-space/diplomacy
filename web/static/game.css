@@ -1,5 +1,5 @@
 /* Game page styling. The game shell (web/templates/game.html) doesn't use
-   Pico — it's a bare div mounted by main.ts — so this covers everything
+   Pico — it's a bare div mounted by main.mjs — so this covers everything
    the page needs, not just the map. Plain nested CSS, no naming
    convention: the game page is its own isolated document (this sheet
    applies to nothing else), and a single .diplomacy-map root is enough
@@ -35,16 +35,6 @@ body {
 		stroke-width: 3;
 	}
 
-	/* Coasts overlay their parent province, so they must not fill —
-	   otherwise they'd hide the province's own colour and label. A dashed
-	   line is enough to show the division. */
-	.coast {
-		fill: none;
-		stroke: var(--border);
-		stroke-width: 1;
-		stroke-dasharray: 4 3;
-	}
-
 	.label {
 		font-size: 11px;
 		font-weight: 600;
@@ -53,4 +43,15 @@ body {
 		pointer-events: none;
 		user-select: none;
 	}
+}
+
+/* CC BY-SA 3.0 attribution for the map geometry (traced from Wikimedia
+   Commons' File:Diplomacy.svg) — kept as a static, always-rendered element
+   independent of whether the map itself loads, since this is a license
+   requirement, not part of the map UI. */
+.map-credit {
+	text-align: center;
+	font-size: 11px;
+	color: #8a8272;
+	margin: 4px 0 0;
 }

@@ -11,12 +11,11 @@
 //     supplyCenter: boolean,
 //     d: string,               // SVG path data
 //     labelAt: [number, number],
-//     // Only present for multi-coast provinces (e.g. Spain's
-//     // spa-nc/spa-sc). A single-coast province's one coast is implicit —
-//     // not worth duplicating into this shape.
-//     coasts: { [coastId: string]: { d: string } } | undefined,
 //   }
 // A map data payload is { mapId: string, provinces: { [id]: <above> } }.
+// Multi-coast provinces (e.g. Spain's spa-nc/spa-sc) aren't drawn as a
+// visual boundary — the real board doesn't show one either, it's implicit
+// in adjudication (core/gamemap's own coasts model).
 
 export async function loadMapData(mapId) {
 	const res = await fetch(`/static/maps/${mapId}.json`);

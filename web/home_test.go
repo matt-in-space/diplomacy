@@ -199,9 +199,6 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 			SupplyCenter bool      `json:"supplyCenter"`
 			D            string    `json:"d"`
 			LabelAt      []float64 `json:"labelAt"`
-			Coasts       map[string]struct {
-				D string `json:"d"`
-			} `json:"coasts"`
 		} `json:"provinces"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &data); err != nil {
@@ -241,13 +238,6 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 	for _, id := range []string{"gas", "mao", "eng"} {
 		if data.Provinces[id].SupplyCenter {
 			t.Fatalf("province %q should not be a supply center", id)
-		}
-	}
-
-	spa := data.Provinces["spa"]
-	for _, coast := range []string{"spa-nc", "spa-sc"} {
-		if c, ok := spa.Coasts[coast]; !ok || c.D == "" {
-			t.Fatalf("spa missing coast %q with a non-empty path", coast)
 		}
 	}
 }

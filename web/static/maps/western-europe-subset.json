@@ -1,24 +1,14 @@
 {
 	"mapId": "western-europe-subset",
-	"_comment": "Schematic placeholder geometry — simple rectangles arranged in roughly the right relative positions, not traced from a real map. Provinces are keyed by the same ProvinceIDs core/gamemap/testdata/western_europe.json uses, and name/type/supplyCenter mirror that file directly. Swapping in real traced geometry later only means replacing this file's 'd'/'labelAt'/'coasts' values, no code changes.",
+	"_comment": "Real geometry traced from Wikimedia Commons' File:Diplomacy.svg (https://commons.wikimedia.org/wiki/File:Diplomacy.svg, by Martin Asal, CC BY-SA 3.0 / GFDL — credited on the game page per the license's attribution requirement) — not copied verbatim: each province's fill path was matched to its label by point-in-polygon testing, its Bezier curves flattened, and Spain's fill (split across two adjacent paths in the source, leaving a gap) was stitched into one closed path. Provinces are keyed by the same ProvinceIDs core/gamemap/testdata/western_europe.json uses, and name/type/supplyCenter mirror that file directly.",
 	"provinces": {
-		"lon": { "name": "London", "type": "coastal", "supplyCenter": true, "d": "M70,20 L180,20 L180,105 L70,105 Z", "labelAt": [125, 62] },
-		"eng": { "name": "English Channel", "type": "water", "supplyCenter": false, "d": "M40,110 L290,110 L290,150 L40,150 Z", "labelAt": [165, 130] },
-		"bre": { "name": "Brest", "type": "coastal", "supplyCenter": true, "d": "M40,155 L180,155 L180,240 L40,240 Z", "labelAt": [110, 197] },
-		"par": { "name": "Paris", "type": "inland", "supplyCenter": true, "d": "M185,150 L320,150 L320,240 L185,240 Z", "labelAt": [252, 195] },
-		"gas": { "name": "Gascony", "type": "coastal", "supplyCenter": false, "d": "M40,245 L240,245 L240,315 L40,315 Z", "labelAt": [140, 280] },
-		"mao": { "name": "Mid-Atlantic Ocean", "type": "water", "supplyCenter": false, "d": "M0,110 L40,110 L40,460 L0,460 Z", "labelAt": [20, 285] },
-		"por": { "name": "Portugal", "type": "coastal", "supplyCenter": true, "d": "M40,320 L100,320 L100,420 L40,420 Z", "labelAt": [70, 370] },
-		"spa": {
-			"name": "Spain",
-			"type": "coastal",
-			"supplyCenter": true,
-			"d": "M100,320 L260,320 L260,420 L100,420 Z",
-			"labelAt": [180, 370],
-			"coasts": {
-				"spa-nc": { "d": "M100,320 L260,320 L260,370 L100,370 Z" },
-				"spa-sc": { "d": "M100,370 L260,370 L260,420 L100,420 Z" }
-			}
-		}
+		"lon": { "name": "London", "type": "coastal", "supplyCenter": true, "d": "m166 269l2 1 3-2 6 2 1 4-2 9-11 10 7 1-4 2-8 2-13-3-2-14 5-4 3-6z", "labelAt": [160, 280] },
+		"eng": { "name": "English Channel", "type": "water", "supplyCenter": false, "d": "m173 301l-4 10-16 4 2 5-5-1-6-1-2-6-6-2v16l-12-3-2-5-20-1-14-14 12-12 10 1 10 3 4-4 10 3 13 1 13 3 8-2z", "labelAt": [135, 306] },
+		"bre": { "name": "Brest", "type": "coastal", "supplyCenter": true, "d": "m150 319l-6-1-2-6-6-2v16l-12-3-2-5-20-1-2 5 3 6 6 1 14 15-1 6 1 7 5 6 18 2v-28l2-8z", "labelAt": [130, 345] },
+		"par": { "name": "Paris", "type": "inland", "supplyCenter": true, "d": "m146 365l3 7 7 2 9-9 20-21 3-12-16-4-7 3h-6l-11-2-2 8z", "labelAt": [155, 358] },
+		"gas": { "name": "Gascony", "type": "coastal", "supplyCenter": false, "d": "m128 363l-7 19 1 2-10 15 1 8 10 5 11 5 1-3 7 3 7-14 8-6 11-2-5-8 2-4-7-3-2-6-7-2-3-7z", "labelAt": [130, 400] },
+		"mao": { "name": "Mid-Atlantic Ocean", "type": "water", "supplyCenter": false, "d": "m102 317l-2 5 3 6 6 1 14 15-1 6 1 7 5 6-7 19 1 2-10 15-11-3-5 1-24-13-13-3-5-6-6-1-2 4-7-3-6 6 2 3-3 12-2 10-13 21h-3l-4 6 3 7 2 1-3 9 1 4-5 8 11 7 8-1 6 7 1 9 3 6v5l-4 1-16 22-17 2v-247h58z", "labelAt": [50, 355] },
+		"por": { "name": "Portugal", "type": "coastal", "supplyCenter": true, "d": "m32 396l-2 10-13 21h-3l-4 6 3 7 2 1-3 9 1 4-5 8 11 7 8-1 9-11-2-10 6-6-3-10 5 1 10-20 9-1 1-4-7-7-13-1 1-4z", "labelAt": [22, 440] },
+		"spa": { "name": "Spain", "type": "coastal", "supplyCenter": true, "d": "m134 417l-11-5-10-5-1-8-11-3-5 1-24-13-13-3-5-6-6-1-2 4-7-3-6 6 2 3-3 12 11-1-1 4 13 1 7 7-1 4-9 1-10 20-5-1 3 10l-6 6 2 10-9 11 6 7 1 9 3 6 10-2 5 1 8-3 18 5 5 3 3-9 4-2 8 1 9-10 6-1 2-4-5-8 14-17 7-5 15-1 11-6 1-7-4 2-12-10-7-3-1 3-11-5z", "labelAt": [85, 450] }
 	}
 }
