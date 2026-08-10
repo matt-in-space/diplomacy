@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -47,7 +48,8 @@ func joinGame(t *testing.T, mux http.Handler, cookie *http.Cookie, code string) 
 }
 
 func TestCreateGameRedirectsToLobby(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -74,8 +76,8 @@ func TestCreateGameRedirectsToLobby(t *testing.T) {
 }
 
 func TestGameSetupLobbyRendersStatusHostCodeAndPlayers(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -134,7 +136,8 @@ func TestGameSetupLobbyRendersStatusHostCodeAndPlayers(t *testing.T) {
 }
 
 func TestCreateGameRejectsUnknownMap(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -170,7 +173,8 @@ func TestCreateGameRejectsUnknownMap(t *testing.T) {
 }
 
 func TestGamesNewRequiresLoginAndRoundTripsBack(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/games/new", nil)
 	rec := httptest.NewRecorder()
@@ -207,7 +211,8 @@ func TestGamesNewRequiresLoginAndRoundTripsBack(t *testing.T) {
 }
 
 func TestSignupCarriesNextThroughToLogin(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	form := url.Values{
 		"email":        {"a@example.com"},
@@ -227,8 +232,8 @@ func TestSignupCarriesNextThroughToLogin(t *testing.T) {
 }
 
 func TestJoinGameAddsPlayerAndRedirectsToLobby(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -266,8 +271,8 @@ func TestJoinGameAddsPlayerAndRedirectsToLobby(t *testing.T) {
 }
 
 func TestJoinGameIsIdempotent(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -290,7 +295,8 @@ func TestJoinGameIsIdempotent(t *testing.T) {
 }
 
 func TestJoinGameRejectsUnknownCode(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	cookie := sessionCookie(login(t, mux, "a@example.com", "password123"))
@@ -331,8 +337,8 @@ func TestJoinGameRejectsUnknownCode(t *testing.T) {
 }
 
 func TestJoinGameRejectsWhenFull(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -376,7 +382,8 @@ func TestJoinGameRejectsWhenFull(t *testing.T) {
 }
 
 func TestGamesJoinRequiresLogin(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/games/join", nil)
 	rec := httptest.NewRecorder()
@@ -392,8 +399,8 @@ func TestGamesJoinRequiresLogin(t *testing.T) {
 }
 
 func TestLobbyStartButtonDisabledUntilFullThenEnabled(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -432,8 +439,8 @@ func TestLobbyStartButtonDisabledUntilFullThenEnabled(t *testing.T) {
 }
 
 func TestStartGameSucceedsWhenFullAndRedirectsToGame(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -461,8 +468,8 @@ func TestStartGameSucceedsWhenFullAndRedirectsToGame(t *testing.T) {
 }
 
 func TestStartGameRejectsWhenNotFull(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -503,8 +510,8 @@ func TestStartGameRejectsWhenNotFull(t *testing.T) {
 }
 
 func TestStartGameRejectsNonHost(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -548,8 +555,8 @@ func TestStartGameRejectsNonHost(t *testing.T) {
 }
 
 func TestGameRedirectsToLobbyWhilePending(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -571,8 +578,8 @@ func TestGameRedirectsToLobbyWhilePending(t *testing.T) {
 }
 
 func TestGameRendersFrontendShellWhenActive(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -637,7 +644,8 @@ func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 }
 
 func TestGameRequiresLogin(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/games/some-id", nil)
 	rec := httptest.NewRecorder()
@@ -649,5 +657,138 @@ func TestGameRequiresLogin(t *testing.T) {
 	}
 	if loc := resp.Header.Get("Location"); loc != "/login?next=%2Fgames%2Fsome-id" {
 		t.Fatalf("Location = %q, want /login?next=%%2Fgames%%2Fsome-id", loc)
+	}
+}
+
+func TestGameStateReturnsPlayerView(t *testing.T) {
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	startReq := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	startReq.AddCookie(hostCookie)
+	startRec := httptest.NewRecorder()
+	mux.ServeHTTP(startRec, startReq)
+	if startRec.Result().StatusCode != http.StatusSeeOther {
+		t.Fatalf("start status = %d, want %d", startRec.Result().StatusCode, http.StatusSeeOther)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/games/"+gameID+"/state", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var view struct {
+		Turn struct {
+			Season string
+			Phase  string
+			Year   int
+		}
+		Units      []struct{ ID, NationID string }
+		YourNation string
+		YourOrders []struct{ UnitID, Description string }
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatalf("body is not valid JSON: %v", err)
+	}
+	if view.Turn.Season != "spring" || view.Turn.Phase != "accept_orders" || view.Turn.Year != 1 {
+		t.Fatalf("Turn = %+v, want Spring 1, accept_orders", view.Turn)
+	}
+	if len(view.Units) != 3 {
+		t.Fatalf("Units = %+v, want all 3 starting units (positions are public)", view.Units)
+	}
+	if view.YourNation != "eng" && view.YourNation != "fra" {
+		t.Fatalf("YourNation = %q, want eng or fra", view.YourNation)
+	}
+	if len(view.YourOrders) != 0 {
+		t.Fatalf("YourOrders = %+v, want none — nothing's been submitted", view.YourOrders)
+	}
+}
+
+func TestGameStateRejectsNonParticipant(t *testing.T) {
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, code := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	signup(t, mux, "joiner@example.com", "Joiny", "password123")
+	joinerCookie := sessionCookie(login(t, mux, "joiner@example.com", "password123"))
+	if resp := joinGame(t, mux, joinerCookie, code); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("join status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
+	}
+
+	startReq := httptest.NewRequest(http.MethodPost, "/games/"+gameID+"/start", nil)
+	startReq.AddCookie(hostCookie)
+	startRec := httptest.NewRecorder()
+	mux.ServeHTTP(startRec, startReq)
+	if startRec.Result().StatusCode != http.StatusSeeOther {
+		t.Fatalf("start status = %d, want %d", startRec.Result().StatusCode, http.StatusSeeOther)
+	}
+
+	// A third, unrelated authenticated player never joined this game.
+	signup(t, mux, "outsider@example.com", "Outsider", "password123")
+	outsiderCookie := sessionCookie(login(t, mux, "outsider@example.com", "password123"))
+
+	req := httptest.NewRequest(http.MethodGet, "/games/"+gameID+"/state", nil)
+	req.AddCookie(outsiderCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestGameStateRejectsPendingGame(t *testing.T) {
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
+
+	signup(t, mux, "host@example.com", "Hosty", "password123")
+	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
+	loc, _ := createGame(t, mux, lobbyService, hostCookie)
+	gameID := strings.TrimSuffix(strings.TrimPrefix(loc, "/games/"), "/lobby")
+
+	// Not started — only the host has joined so far.
+	req := httptest.NewRequest(http.MethodGet, "/games/"+gameID+"/state", nil)
+	req.AddCookie(hostCookie)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusConflict)
+	}
+}
+
+func TestGameStateRequiresLogin(t *testing.T) {
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
+
+	req := httptest.NewRequest(http.MethodGet, "/games/some-id/state", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSeeOther)
 	}
 }

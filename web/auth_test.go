@@ -40,7 +40,8 @@ func sessionCookie(resp *http.Response) *http.Cookie {
 }
 
 func TestSignupThenLoginSetsSessionCookie(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signupResp := signup(t, mux, "a@example.com", "Alice", "password123")
 	if signupResp.StatusCode != http.StatusSeeOther {
@@ -65,7 +66,8 @@ func TestSignupThenLoginSetsSessionCookie(t *testing.T) {
 
 func TestSessionCookieAuthenticatesSubsequentRequest(t *testing.T) {
 	authService := newTestAuthService(t)
-	mux := web.NewMux(authService, newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(authService, lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -85,7 +87,8 @@ func TestSessionCookieAuthenticatesSubsequentRequest(t *testing.T) {
 }
 
 func TestLogoutClearsServerSideSession(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -130,7 +133,8 @@ func TestLogoutClearsServerSideSession(t *testing.T) {
 }
 
 func TestSignupFormRenders(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/signup", nil)
 	rec := httptest.NewRecorder()
@@ -149,7 +153,8 @@ func TestSignupFormRenders(t *testing.T) {
 }
 
 func TestLoginFormRenders(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	rec := httptest.NewRecorder()
@@ -164,7 +169,8 @@ func TestLoginFormRenders(t *testing.T) {
 }
 
 func TestSignupAndLoginFormsRedirectWhenAlreadyAuthenticated(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -189,7 +195,8 @@ func TestSignupAndLoginFormsRedirectWhenAlreadyAuthenticated(t *testing.T) {
 }
 
 func TestFlashRendersThroughRealTemplateThenClears(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	// No account exists yet, so this fails with a flash set.
 	loginResp := login(t, mux, "missing@example.com", "password123")
@@ -236,7 +243,8 @@ func TestFlashRendersThroughRealTemplateThenClears(t *testing.T) {
 }
 
 func TestLoginRejectsWrongPasswordWithFlash(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	resp := login(t, mux, "a@example.com", "wrong-password")

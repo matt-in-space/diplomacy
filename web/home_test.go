@@ -11,7 +11,8 @@ import (
 )
 
 func TestHomeRendersHelloPage(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -29,7 +30,8 @@ func TestHomeRendersHelloPage(t *testing.T) {
 }
 
 func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -51,7 +53,8 @@ func TestHomeShowsLoginSignupLinksWhenAnonymous(t *testing.T) {
 }
 
 func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "a@example.com", "Alice", "password123")
 	loginResp := login(t, mux, "a@example.com", "password123")
@@ -78,8 +81,8 @@ func TestHomeShowsDisplayNameWhenLoggedIn(t *testing.T) {
 }
 
 func TestHomeShowsPendingGameInList(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -103,8 +106,8 @@ func TestHomeShowsPendingGameInList(t *testing.T) {
 }
 
 func TestHomeShowsActiveGameWithFormattedTurn(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -140,8 +143,8 @@ func TestHomeShowsActiveGameWithFormattedTurn(t *testing.T) {
 }
 
 func TestHomeListsGamesNewestFirst(t *testing.T) {
-	lobbyService := newTestLobbyService(t)
-	mux := web.NewMux(newTestAuthService(t), lobbyService)
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	signup(t, mux, "host@example.com", "Hosty", "password123")
 	hostCookie := sessionCookie(login(t, mux, "host@example.com", "password123"))
@@ -166,7 +169,8 @@ func TestHomeListsGamesNewestFirst(t *testing.T) {
 }
 
 func TestStaticServesPicoCSS(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/pico.min.css", nil)
 	rec := httptest.NewRecorder()
@@ -181,7 +185,8 @@ func TestStaticServesPicoCSS(t *testing.T) {
 }
 
 func TestStaticServesWesternEuropeMapData(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/maps/western-europe-subset.json", nil)
 	rec := httptest.NewRecorder()
@@ -243,7 +248,8 @@ func TestStaticServesWesternEuropeMapData(t *testing.T) {
 }
 
 func TestStaticServesGameCSS(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/game.css", nil)
 	rec := httptest.NewRecorder()
@@ -258,7 +264,8 @@ func TestStaticServesGameCSS(t *testing.T) {
 }
 
 func TestStaticServesMainModule(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/js/main.mjs", nil)
 	rec := httptest.NewRecorder()
@@ -281,7 +288,8 @@ func TestStaticServesMainModule(t *testing.T) {
 // renamed to something not starting with '_' or '.', this would start
 // failing as the file becomes servable.
 func TestStaticDoesNotServeJSTests(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/js/_tests/main.test.mjs", nil)
 	rec := httptest.NewRecorder()
@@ -293,7 +301,8 @@ func TestStaticDoesNotServeJSTests(t *testing.T) {
 }
 
 func TestUnknownStaticFileReturnsNotFound(t *testing.T) {
-	mux := web.NewMux(newTestAuthService(t), newTestLobbyService(t))
+	lobbyService, gameplayService := newTestLobbyService(t)
+	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)
 
 	req := httptest.NewRequest(http.MethodGet, "/static/missing.css", nil)
 	rec := httptest.NewRecorder()

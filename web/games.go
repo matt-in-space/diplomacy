@@ -1,10 +1,13 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/matt-in-space/diplomacy/application/auth"
+	"github.com/matt-in-space/diplomacy/application/gameplay"
 	"github.com/matt-in-space/diplomacy/application/lobby"
 	"github.com/matt-in-space/diplomacy/core/game"
 	"github.com/matt-in-space/diplomacy/core/gamemap"
@@ -186,6 +189,65 @@ func handleGame(lobbyService *lobby.Service) http.HandlerFunc {
 		// Execute, not ExecuteTemplate — game.html has no {{define}} wrapper
 		// to name, it's parsed standalone (see gameTemplate's doc comment).
 		if err := gameTemplate.Execute(w, gamePageData{GameID: string(id), MapID: string(setup.MapID)}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
+// handleGameState serves the JSON slice of an active game's state the
+// requesting player is allowed to see (gameplay.PlayerView) — the initial
+// hydration payload the frontend will fetch once it consumes this (not yet
+// wired up; see docs/game-ui.md). Unlike handleGame/handleGameSetupLobby,
+// this checks that the requester is actually a participant in this game
+// before returning anything: those pages show little enough that any
+// authenticated visitor viewing them is harmless, but this endpoint
+// exposes real board state, so it's held to a stricter bar. That gap in
+// the two page handlers is noted, not fixed, here.
+//
+// Takes gameplayService directly rather than going through lobbyService —
+// this is game-in-progress state, not a lobby/setup concern, and doesn't
+// belong tucked behind a passthrough on a service named for a different
+// bounded context just because that service happens to hold one.
+func handleGameState(lobbyService *lobby.Service, gameplayService *gameplay.GameplayService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := game.GameID(r.PathValue("id"))
+
+		// Guaranteed present: this route is wrapped in requireAuthentication.
+		player, _ := currentPlayer(r)
+
+		setup, err := lobbyService.GetGameSetup(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, lobby.ErrGameSetupNotFound) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !slices.Contains(setup.PlayerIDs, player.ID) {
+			http.Error(w, "not a participant in this game", http.StatusForbidden)
+			return
+		}
+
+		status, err := lobbyService.StatusFor(r.Context(), setup)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if status != lobby.StatusActive {
+			http.Error(w, "game has not started", http.StatusConflict)
+			return
+		}
+
+		view, err := gameplayService.GetPlayerView(r.Context(), id, player.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(view); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

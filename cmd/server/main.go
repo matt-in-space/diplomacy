@@ -35,7 +35,7 @@ func main() {
 		seedDevGame(context.Background(), lobbyService, players)
 	}
 
-	mux := web.NewMux(authService, lobbyService)
+	mux := web.NewMux(authService, lobbyService, gameplayService)
 
 	const addr = ":8080"
 	log.Printf("Diplomacy server listening on %s", addr)
