@@ -163,6 +163,11 @@ export function attachMapViewport(svg, { onZoomChange } = {}) {
 
 	function endDrag(event) {
 		if (event.pointerId !== pointerId) return;
+
+		// Captured before the reset below — this is what distinguishes a
+		// genuine click from the pointerup that ends a drag.
+		const wasDragging = dragging;
+
 		if (dragging) {
 			try {
 				svg.releasePointerCapture(pointerId);
@@ -173,6 +178,20 @@ export function attachMapViewport(svg, { onZoomChange } = {}) {
 		dragging = false;
 		pointerId = null;
 		svg.classList.remove("dragging");
+
+		// Top-level delegated click handling (see the province-id
+		// discussion): only a real pointerup counts as a click —
+		// pointercancel means the gesture was aborted, not completed — and
+		// only when no drag occurred first. Province paths are the only
+		// elements under the map with an id (mapRender.mjs), so this can't
+		// mistake a unit/supply-center icon for a province; icons aren't
+		// wired into this delegation yet.
+		if (event.type === "pointerup" && !wasDragging) {
+			const province = event.target.closest("path[id]");
+			if (province) {
+				console.log("clicked province:", province.id);
+			}
+		}
 	}
 	svg.addEventListener("pointerup", endDrag);
 	svg.addEventListener("pointercancel", endDrag);
