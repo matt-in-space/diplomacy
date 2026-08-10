@@ -1,6 +1,7 @@
 import { loadMapData } from "./mapData.mjs";
 import { renderMap } from "./mapRender.mjs";
 import { attachMapViewport } from "./mapViewport.mjs";
+import { loadGameState, gameState } from "./gameState.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
 // with a .dataset shape, not literally an HTMLElement, so it's testable
@@ -21,16 +22,17 @@ async function main() {
 		throw new Error("missing #app mount element");
 	}
 
-	const { mapId } = readMountData(mount);
+	const { gameId, mapId } = readMountData(mount);
 
 	mount.textContent = "Loading map…";
 	try {
-		const mapData = await loadMapData(mapId);
+		const [mapData, view] = await Promise.all([loadMapData(mapId), loadGameState(gameId)]);
+		gameState.set(view);
 		mount.textContent = "";
 		const svg = renderMap(mount, mapData);
 		attachMapViewport(svg);
 	} catch (err) {
-		mount.textContent = `Failed to load the map: ${err.message}`;
+		mount.textContent = `Failed to load the game: ${err.message}`;
 	}
 }
 
