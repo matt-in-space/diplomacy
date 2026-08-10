@@ -2,6 +2,7 @@ import { loadMapData } from "./mapData.mjs";
 import { renderMap } from "./mapRender.mjs";
 import { attachMapViewport } from "./mapViewport.mjs";
 import { loadGameState, gameState } from "./gameState.mjs";
+import { computeIconPlacements, renderIcons, updateIconScale } from "./mapIcons.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
 // with a .dataset shape, not literally an HTMLElement, so it's testable
@@ -30,7 +31,9 @@ async function main() {
 		gameState.set(view);
 		mount.textContent = "";
 		const svg = renderMap(mount, mapData);
-		attachMapViewport(svg);
+		renderIcons(svg, computeIconPlacements(mapData, view));
+		updateIconScale(svg, 1); // explicit initial scale, matching the base/fit view
+		attachMapViewport(svg, { onZoomChange: (zoomFactor) => updateIconScale(svg, zoomFactor) });
 	} catch (err) {
 		mount.textContent = `Failed to load the game: ${err.message}`;
 	}

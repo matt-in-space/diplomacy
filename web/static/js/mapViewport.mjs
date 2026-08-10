@@ -53,6 +53,13 @@ export function panViewBox(base, box, dx, dy) {
 	return clampViewBox(base, { ...box, x: box.x + dx, y: box.y + dy });
 }
 
+// currentZoomFactor is how many times more zoomed-in box is than base — 1
+// at the fit view, up to MAX_ZOOM. Used by callers (see mapIcons.mjs) that
+// need to counter-scale something so it doesn't grow/shrink with the map.
+export function currentZoomFactor(base, box) {
+	return base.width / box.width;
+}
+
 // Fraction of the current viewBox's width/height moved per arrow-key
 // press, and the wheel zoom factor per notch — both tunable, nothing else
 // depends on the exact values.
@@ -68,8 +75,12 @@ const DRAG_THRESHOLD_PX = 4;
 // attachMapViewport wires up wheel-zoom, drag-to-pan, and arrow-key-pan on
 // svg, reading its current viewBox attribute (the fit-everything rect
 // renderMap already computes) as the base/fit bound everything else is
-// clamped against.
-export function attachMapViewport(svg) {
+// clamped against. onZoomChange, if given, is called after every viewport
+// change (pan or zoom — harmless and cheap to call when the factor didn't
+// actually move) with the current zoom factor, for callers that need to
+// counter-scale something so it doesn't shrink/grow with the map (see
+// mapIcons.mjs).
+export function attachMapViewport(svg, { onZoomChange } = {}) {
 	const base = parseViewBox(svg.getAttribute("viewBox"));
 	let current = { ...base };
 
@@ -78,6 +89,7 @@ export function attachMapViewport(svg) {
 			"viewBox",
 			`${current.x} ${current.y} ${current.width} ${current.height}`,
 		);
+		onZoomChange?.(currentZoomFactor(base, current));
 	}
 
 	function toSvgPoint(clientX, clientY) {

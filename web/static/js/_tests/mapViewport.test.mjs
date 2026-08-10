@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clampViewBox, zoomViewBox, panViewBox } from "../mapViewport.mjs";
+import { clampViewBox, zoomViewBox, panViewBox, currentZoomFactor } from "../mapViewport.mjs";
 
 const base = { x: 0, y: 0, width: 100, height: 100 };
 
@@ -52,4 +52,13 @@ test("panViewBox translates by exactly dx/dy when within bounds", () => {
 test("panViewBox clamps a pan that would cross an edge", () => {
 	const box = { x: 40, y: 40, width: 50, height: 50 };
 	assert.deepEqual(panViewBox(base, box, 20, 20), { x: 50, y: 50, width: 50, height: 50 });
+});
+
+test("currentZoomFactor is 1 at the base view", () => {
+	assert.equal(currentZoomFactor(base, base), 1);
+});
+
+test("currentZoomFactor reflects how much narrower the box is than base", () => {
+	const zoomedIn = { x: 25, y: 25, width: 25, height: 25 };
+	assert.equal(currentZoomFactor(base, zoomedIn), 4);
 });

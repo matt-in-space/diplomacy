@@ -190,6 +190,52 @@ body {
 	.province:hover {
 		fill: var(--hover);
 	}
+
+	/* Unit (tank/ship) and supply-center (skyline) icons — see
+	   mapIcons.mjs. Deliberately keyed by the real lowercase NationID
+	   codes (eng/fra), not the stub sidebar's .england/.france classes in
+	   web/templates/game.html, which predate any real data and don't
+	   match backend nation codes. */
+	.icon-circle {
+		stroke-width: 1.5;
+	}
+
+	.icon-circle.unit {
+		stroke: var(--border);
+	}
+
+	.icon-circle.supply-center {
+		stroke: var(--brass);
+		stroke-width: 2;
+	}
+
+	.icon-circle.eng {
+		fill: #1e3a6e;
+	}
+
+	.icon-circle.fra {
+		fill: #4a90d9;
+	}
+
+	/* An unowned supply center is still real and marked, just neutral —
+	   not skipped. */
+	.icon-circle.unowned {
+		fill: #9a9488;
+	}
+
+	/* Filled shapes (rect/circle/path) need no stroke of their own — an
+	   ivory outline on an already-ivory fill only adds bulk and rounds out
+	   small shapes. Only <line> elements (cannon, mast) need stroke, since
+	   a line has no fill to render at all otherwise. */
+	.icon-symbol {
+		fill: var(--ivory);
+	}
+
+	.icon-symbol line {
+		stroke: var(--ivory);
+		stroke-width: 1;
+		stroke-linecap: round;
+	}
 }
 
 /* CC BY-SA 3.0 attribution for the map geometry (traced from Wikimedia
