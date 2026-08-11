@@ -1,7 +1,7 @@
 import { loadMapData } from "./mapData.mjs";
 import { renderMap } from "./mapRender.mjs";
 import { attachMapViewport } from "./mapViewport.mjs";
-import { loadGameState, gameState } from "./gameState.mjs";
+import { createGameClient } from "./gameClient.mjs";
 import { computeIconPlacements, renderIcons, updateIconScale } from "./mapIcons.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
@@ -24,16 +24,26 @@ async function main() {
 	}
 
 	const { gameId, mapId } = readMountData(mount);
+	const game = createGameClient(gameId);
 
 	mount.textContent = "Loading map…";
 	try {
-		const [mapData, view] = await Promise.all([loadMapData(mapId), loadGameState(gameId)]);
-		gameState.set(view);
-		mount.textContent = "";
-		const svg = renderMap(mount, mapData);
-		renderIcons(svg, computeIconPlacements(mapData, view));
-		updateIconScale(svg, 1); // explicit initial scale, matching the base/fit view
-		attachMapViewport(svg, { onZoomChange: (zoomFactor) => updateIconScale(svg, zoomFactor) });
+		const mapData = await loadMapData(mapId);
+
+		game.onUpdate((view) => {
+			// The immediate call at registration fires with whatever's
+			// already in the store — null until refresh() below resolves.
+			// Nothing to render yet.
+			if (!view) return;
+
+			mount.textContent = "";
+			const svg = renderMap(mount, mapData);
+			renderIcons(svg, computeIconPlacements(mapData, view));
+			updateIconScale(svg, 1); // explicit initial scale, matching the base/fit view
+			attachMapViewport(svg, { onZoomChange: (zoomFactor) => updateIconScale(svg, zoomFactor) });
+		});
+
+		await game.refresh();
 	} catch (err) {
 		mount.textContent = `Failed to load the game: ${err.message}`;
 	}
