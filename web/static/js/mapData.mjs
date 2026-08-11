@@ -12,7 +12,12 @@
 //     d: string,               // SVG path data
 //     labelAt: [number, number],
 //   }
-// A map data payload is { mapId: string, provinces: { [id]: <above> } }.
+// A map data payload is:
+//   { mapId: string, nations: { [id]: { name: string } }, provinces: { [id]: <above> } }
+// nations is the authoritative roster of nations on this map — not
+// derived from any particular game's current state (contrast with
+// PlayerView, which only reflects what's true on the board *right now*),
+// so it stays correct even after an elimination.
 // Multi-coast provinces (e.g. Spain's spa-nc/spa-sc) aren't drawn as a
 // visual boundary — the real board doesn't show one either, it's implicit
 // in adjudication (core/gamemap's own coasts model).

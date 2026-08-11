@@ -1,6 +1,10 @@
 {
 	"mapId": "western-europe-subset",
-	"_comment": "Real geometry traced from Wikimedia Commons' File:Diplomacy.svg (https://commons.wikimedia.org/wiki/File:Diplomacy.svg, by Martin Asal, CC BY-SA 3.0 / GFDL — credited on the game page per the license's attribution requirement) — not copied verbatim: each province's fill path was matched to its label by point-in-polygon testing, its Bezier curves flattened, and Spain's fill (split across two adjacent paths in the source, leaving a gap) was stitched into one closed path. Provinces are keyed by the same ProvinceIDs core/gamemap/testdata/western_europe.json uses, and name/type/supplyCenter mirror that file directly.",
+	"_comment": "Real geometry traced from Wikimedia Commons' File:Diplomacy.svg (https://commons.wikimedia.org/wiki/File:Diplomacy.svg, by Martin Asal, CC BY-SA 3.0 / GFDL — credited on the game page per the license's attribution requirement) — not copied verbatim: each province's fill path was matched to its label by point-in-polygon testing, its Bezier curves flattened, and Spain's fill (split across two adjacent paths in the source, leaving a gap) was stitched into one closed path. Provinces are keyed by the same ProvinceIDs core/gamemap/testdata/western_europe.json uses, and name/type/supplyCenter mirror that file directly. nations mirrors core/gamemap/testdata/western_europe.json's nations list — an authoritative roster, not derived from any particular game's current state, so it stays correct even after an elimination.",
+	"nations": {
+		"eng": { "name": "England" },
+		"fra": { "name": "France" }
+	},
 	"provinces": {
 		"lon": { "name": "London", "type": "coastal", "supplyCenter": true, "d": "m166 269l2 1 3-2 6 2 1 4-2 9-11 10 7 1-4 2-8 2-13-3-2-14 5-4 3-6z", "labelAt": [160, 280] },
 		"eng": { "name": "English Channel", "type": "water", "supplyCenter": false, "d": "m173 301l-4 10-16 4 2 5-5-1-6-1-2-6-6-2v16l-12-3-2-5-20-1-14-14 12-12 10 1 10 3 4-4 10 3 13 1 13 3 8-2z", "labelAt": [135, 306] },

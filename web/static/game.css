@@ -121,6 +121,9 @@ body {
 	}
 }
 
+/* Keyed by the real lowercase NationID codes (eng/fra), matching the
+   map-icon CSS's convention exactly — not the account/lobby-style full
+   names this used before real data was wired up. */
 .nation-swatch {
 	display: inline-block;
 	width: 14px;
@@ -128,11 +131,11 @@ body {
 	border-radius: 3px;
 	border: 1px solid var(--brass);
 
-	&.england {
+	&.eng {
 		background: #1e3a6e;
 	}
 
-	&.france {
+	&.fra {
 		background: #4a90d9;
 	}
 }

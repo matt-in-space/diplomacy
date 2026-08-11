@@ -3,6 +3,7 @@ import { renderMap } from "./mapRender.mjs";
 import { attachMapViewport } from "./mapViewport.mjs";
 import { createGameClient } from "./gameClient.mjs";
 import { computeIconPlacements, renderIcons, updateIconScale } from "./mapIcons.mjs";
+import { updateSidebar } from "./sidebarRender.mjs";
 
 // readMountData is a thin, DOM-decoupled validator — it takes anything
 // with a .dataset shape, not literally an HTMLElement, so it's testable
@@ -41,6 +42,16 @@ async function main() {
 			renderIcons(svg, computeIconPlacements(mapData, view));
 			updateIconScale(svg, 1); // explicit initial scale, matching the base/fit view
 			attachMapViewport(svg, { onZoomChange: (zoomFactor) => updateIconScale(svg, zoomFactor) });
+		});
+
+		// A second, independent subscription — the store already supports
+		// multiple subscribers. Unlike the map-render callback above, this
+		// one has no "only correct once" caveat: rebuilding list <li>s and
+		// setting textContent is naturally safe to re-run on every future
+		// update, not just the first.
+		game.onUpdate((view) => {
+			if (!view) return;
+			updateSidebar(view, mapData);
 		});
 
 		await game.refresh();

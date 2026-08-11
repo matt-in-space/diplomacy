@@ -13,28 +13,26 @@
 	<div class="game-layout">
 		<div class="map-area">
 			<div id="app" data-game-id="{{.GameID}}" data-map-id="{{.MapID}}"></div>
-			<!-- Stub, no real data yet — see docs/game-ui.md. Lives outside
-			     #app: main.mjs replaces #app's whole content while the map
-			     loads, which would wipe anything placed inside it. -->
+			<!-- Real data, filled in by sidebarRender.mjs once main.mjs's
+			     first game.onUpdate fires — see docs/game-ui.md. Lives
+			     outside #app: main.mjs replaces #app's whole content while
+			     the map loads, which would wipe anything placed inside it.
+			     Placeholder text below is neutral ("Loading…"), not
+			     specific fake data — real game state briefly flashing stale
+			     invented values would be actively misleading. -->
 			<div class="turn-status">
-				<div class="turn">Spring 1902</div>
-				<div class="phase">Accepting Orders</div>
+				<div class="turn">Loading…</div>
+				<div class="phase"></div>
 			</div>
 		</div>
 		<aside class="sidebar">
 			<section>
 				<h2>Nations</h2>
-				<ul class="nation-list">
-					<li><span class="nation-swatch england"></span>England</li>
-					<li><span class="nation-swatch france"></span>France</li>
-				</ul>
+				<ul class="nation-list"></ul>
 			</section>
 			<section>
-				<h2>Your Units — France</h2>
-				<ul class="unit-list">
-					<li><span class="unit-label">A Paris</span><span class="unit-order">Hold</span></li>
-					<li><span class="unit-label">F Brest</span><span class="unit-order">Move &rarr; English Channel</span></li>
-				</ul>
+				<h2 class="unit-list-heading">Your Units</h2>
+				<ul class="unit-list"></ul>
 			</section>
 		</aside>
 	</div>

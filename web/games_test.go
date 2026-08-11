@@ -619,17 +619,23 @@ func TestGameRendersFrontendShellWhenActive(t *testing.T) {
 		t.Fatalf("body missing the frontend script tag: %q", body)
 	}
 
-	// Stub UI (no real data yet — see docs/game-ui.md): turn/phase status,
-	// nation list, and unit list with fake orders.
+	// Turn/phase status, nation list, and unit list are populated
+	// client-side by sidebarRender.mjs now (see gameClient.mjs's
+	// PlayerView hydration) — the static template only carries the shell
+	// structure JS fills in, plus a neutral loading placeholder, not any
+	// specific fake game data.
 	for _, want := range []string{
-		"Spring 1902", "Accepting Orders",
-		"England", "France",
-		"A Paris", "Hold",
-		"F Brest", "English Channel",
+		"turn-status", "nation-list", "unit-list-heading", "unit-list",
+		"Loading…",
 		"fonts.googleapis.com",
 	} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("body missing stub UI content %q: %q", want, body)
+			t.Fatalf("body missing expected shell content %q: %q", want, body)
+		}
+	}
+	for _, unwanted := range []string{"Spring 1902", "Accepting Orders", "England", "France", "Hold"} {
+		if strings.Contains(body, unwanted) {
+			t.Fatalf("body still contains stale stub content %q: %q", unwanted, body)
 		}
 	}
 

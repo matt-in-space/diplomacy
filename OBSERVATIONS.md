@@ -1,0 +1,3 @@
+- Reconsider using Svelte. The front end is getting to be fairly reactive and I think granular state management is going to be a thing
+- Consider having one JSON file to represent the nation list with all of the back end focused node traveral as well as the front end rendering data
+- We shouldn't use country names for CSS classes. If we ever add more maps with different nations it won't work. This should be part of the map data instead. Do this once we know what color options are needed.
