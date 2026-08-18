@@ -9,13 +9,17 @@ import (
 	"github.com/matt-in-space/diplomacy/core/game"
 )
 
-func handleHome(lobbyService *lobby.Service) http.HandlerFunc {
+func handleHome(tmpl pages, lobbyService *lobby.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data := homePageData{pageData: newPageData(w, r)}
 		if data.CurrentPlayer != nil {
 			data.Games = homeGameRows(r.Context(), lobbyService, data.CurrentPlayer.ID)
 		}
-		if err := homeTemplate.ExecuteTemplate(w, "layout", data); err != nil {
+		t, err := tmpl.home()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", data)
+		}
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

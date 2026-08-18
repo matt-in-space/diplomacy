@@ -13,9 +13,15 @@ import (
 	"github.com/matt-in-space/diplomacy/core/gamemap"
 )
 
-func handleNewGameForm(w http.ResponseWriter, r *http.Request) {
-	if err := gamesNewTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleNewGameForm(tmpl pages) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t, err := tmpl.gamesNew()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", newPageData(w, r))
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -40,9 +46,15 @@ func handleCreateGame(lobbyService *lobby.Service) http.HandlerFunc {
 	}
 }
 
-func handleJoinGameForm(w http.ResponseWriter, r *http.Request) {
-	if err := gamesJoinTemplate.ExecuteTemplate(w, "layout", newPageData(w, r)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleJoinGameForm(tmpl pages) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t, err := tmpl.gamesJoin()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", newPageData(w, r))
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -84,7 +96,7 @@ func joinErrorMessage(err error) string {
 	}
 }
 
-func handleGameSetupLobby(lobbyService *lobby.Service, authService *auth.Service) http.HandlerFunc {
+func handleGameSetupLobby(tmpl pages, lobbyService *lobby.Service, authService *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := game.GameID(r.PathValue("id"))
 
@@ -120,7 +132,11 @@ func handleGameSetupLobby(lobbyService *lobby.Service, authService *auth.Service
 			data.ReadyToStart, data.Capacity = ready, capacity
 		}
 
-		if err := gameSetupLobbyTemplate.ExecuteTemplate(w, "layout", data); err != nil {
+		t, err := tmpl.gameSetupLobby()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", data)
+		}
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
@@ -159,7 +175,7 @@ func startGameErrorMessage(err error) string {
 	}
 }
 
-func handleGame(lobbyService *lobby.Service) http.HandlerFunc {
+func handleGame(tmpl pages, lobbyService *lobby.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := game.GameID(r.PathValue("id"))
 
@@ -188,7 +204,11 @@ func handleGame(lobbyService *lobby.Service) http.HandlerFunc {
 
 		// Execute, not ExecuteTemplate — game.html has no {{define}} wrapper
 		// to name, it's parsed standalone (see gameTemplate's doc comment).
-		if err := gameTemplate.Execute(w, gamePageData{GameID: string(id), MapID: string(setup.MapID)}); err != nil {
+		t, err := tmpl.game()
+		if err == nil {
+			err = t.Execute(w, gamePageData{GameID: string(id), MapID: string(setup.MapID)})
+		}
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

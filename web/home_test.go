@@ -287,6 +287,11 @@ func TestStaticServesMainModule(t *testing.T) {
 // embedded binary and off the public static route. If _tests/ were ever
 // renamed to something not starting with '_' or '.', this would start
 // failing as the file becomes servable.
+//
+// This pins the embedded half only. Dev mode (web.WithSourceDir) reads the
+// same tree from disk and has to honor the same exclusion on its own —
+// see TestDevModeDoesNotServeUnderscoredPaths in dev_test.go, and the
+// embedRules wrapper in devfs.go that makes it true.
 func TestStaticDoesNotServeJSTests(t *testing.T) {
 	lobbyService, gameplayService := newTestLobbyService(t)
 	mux := web.NewMux(newTestAuthService(t), lobbyService, gameplayService)

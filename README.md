@@ -62,10 +62,16 @@ mise trust   # first time only, in a fresh clone
 mise run dev # runs the seeded dev server
 ```
 
-There's no live-reload: editing a Go template requires a rebuild
-(`go:embed` bundles whatever's on disk at build time), and editing a
-`web/static/` file requires restarting the server for `go:embed` to pick
-it up again. `go:embed` re-reads nothing at request time.
+By default, templates and static assets are the copies `go:embed` baked into
+the binary at build time — the server is self-contained, and editing a
+template or a `web/static/` file needs a rebuild/restart to show up, since
+`go:embed` re-reads nothing at request time. Add `-dev` (must be run from the
+repository root) to read `web/templates/` and `web/static/` from disk on
+every request instead, so an edit shows up on the next browser refresh with
+no rebuild or restart — `-dev` still replicates `go:embed`'s exclusion of
+`_`/`.`-prefixed paths, so `static/js/_tests/` stays unreachable either way.
+Go code changes still need a restart, and so does anything held in the
+in-memory repositories — a restart still empties those.
 
 ## Docs
 

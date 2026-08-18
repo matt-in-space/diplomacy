@@ -8,5 +8,5 @@ run = "node --test \"web/static/js/_tests/**/*.test.mjs\""
 sources = ["web/static/js/**/*.mjs"]
 
 [tasks.dev]
-description = "Run the dev server (with seeded dev accounts)"
-run = "go run ./cmd/server -seed"
+description = "Run the dev server (with seeded dev accounts, reading templates/static assets from disk)"
+run = "go run ./cmd/server -seed -dev"

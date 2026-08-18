@@ -8,13 +8,19 @@ import (
 	"github.com/matt-in-space/diplomacy/application/auth"
 )
 
-func handleSignupForm(w http.ResponseWriter, r *http.Request) {
-	data := authFormPageData{
-		pageData: newPageData(w, r),
-		Next:     safeRedirectTarget(r.URL.Query().Get("next")),
-	}
-	if err := signupTemplate.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleSignupForm(tmpl pages) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := authFormPageData{
+			pageData: newPageData(w, r),
+			Next:     safeRedirectTarget(r.URL.Query().Get("next")),
+		}
+		t, err := tmpl.signup()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", data)
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -38,13 +44,19 @@ func handleSignupSubmit(authService *auth.Service) http.HandlerFunc {
 	}
 }
 
-func handleLoginForm(w http.ResponseWriter, r *http.Request) {
-	data := authFormPageData{
-		pageData: newPageData(w, r),
-		Next:     safeRedirectTarget(r.URL.Query().Get("next")),
-	}
-	if err := loginTemplate.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleLoginForm(tmpl pages) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := authFormPageData{
+			pageData: newPageData(w, r),
+			Next:     safeRedirectTarget(r.URL.Query().Get("next")),
+		}
+		t, err := tmpl.login()
+		if err == nil {
+			err = t.ExecuteTemplate(w, "layout", data)
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
